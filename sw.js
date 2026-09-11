@@ -1,4 +1,4 @@
-const CACHE = "lab-stracon-v1";
+const CACHE = "lab-stracon-v1.1";
 const LOCAL_ASSETS = ["./", "./index.html", "./sw.js"];
 
 // Instalación: cachea lo local
