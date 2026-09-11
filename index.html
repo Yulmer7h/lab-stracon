@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#004B8D">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Lab Stracon">
+<title>Lab Stracon</title>
+
+<!-- Manifest se inyecta por JS (más abajo) -->
+<link rel="manifest" id="manifestLink">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          stracon: {
+            blue: '#004B8D',
+            blueDark: '#003366',
+            blueLight: '#1E6BB8',
+            red: '#D32F2F',
+          }
+        },
+        fontFamily: {
+          mono: ['ui-monospace','SFMono-Regular','Menlo','monospace']
+        }
+      }
+    }
+  };
+
+  // ---------- Manifest + íconos inline ----------
+  (function generarManifest() {
+    // Ícono SVG con "LS" sobre fondo azul Stracon
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+      <rect width="512" height="512" rx="100" fill="#004B8D"/>
+      <circle cx="256" cy="256" r="180" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.15"/>
+      <text x="256" y="330" font-family="Arial,Helvetica,sans-serif" font-size="240" font-weight="900" fill="#ffffff" text-anchor="middle">LS</text>
+    </svg>`;
+
+    const iconDataUri = "data:image/svg+xml;base64," +
+      btoa(unescape(encodeURIComponent(svgIcon)));
+
+    const manifest = {
+      name: "Lab Stracon",
+      short_name: "Lab Stracon",
+      description: "Cálculos de laboratorio de suelos y concretos",
+      start_url: "./",
+      scope: "./",
+      display: "standalone",
+      orientation: "portrait",
+      background_color: "#F5F5F5",
+      theme_color: "#004B8D",
+      lang: "es",
+      icons: [
+        { src: iconDataUri, sizes: "192x192", type: "image/svg+xml", purpose: "any" },
+        { src: iconDataUri, sizes: "512x512", type: "image/svg+xml", purpose: "any" },
+        { src: iconDataUri, sizes: "any", type: "image/svg+xml", purpose: "maskable" }
+      ]
+    };
+
+    const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
+    document.getElementById("manifestLink").href = URL.createObjectURL(blob);
+
+    // Favicon y apple-touch-icon
+    const fav = document.createElement("link");
+    fav.rel = "icon";
+    fav.type = "image/svg+xml";
+    fav.href = iconDataUri;
+    document.head.appendChild(fav);
+
+    const apple = document.createElement("link");
+    apple.rel = "apple-touch-icon";
+    apple.href = iconDataUri;
+    document.head.appendChild(apple);
+  })();
+</script>
+
+<style>
+  body { -webkit-tap-highlight-color: transparent; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
+
+<div class="max-w-md mx-auto p-4 pb-24">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between mb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-2xl bg-stracon-blue flex items-center justify-center text-white font-black shadow-lg shadow-stracon-blue/30">
+        LS
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-slate-900 leading-tight">Lab Stracon</h1>
+        <p class="text-[11px] text-slate-500">Contenido de Humedad</p>
+      </div>
+    </div>
+    <span id="statusPill" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
+      ● Online
+    </span>
+  </header>
+
+  <!-- Card principal -->
+  <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5 mb-4">
+
+    <!-- Toggle método -->
+    <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-5">
+      <button id="btnCon" onclick="setMetodo('con')"
+        class="py-2.5 text-sm font-bold rounded-lg transition">
+        Con tara
+      </button>
+      <button id="btnSin" onclick="setMetodo('sin')"
+        class="py-2.5 text-sm font-bold rounded-lg transition">
+        Sin tara
+      </button>
+    </div>
+
+    <!-- Campos CON tara -->
+    <div id="camposCon" class="space-y-3">
+      <div>
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda + tara (g)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="mht"
+          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca + tara (g)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="mst"
+          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tara (g)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="tara"
+          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+      </div>
+    </div>
+
+    <!-- Campos SIN tara -->
+    <div id="camposSin" class="space-y-3 hidden">
+      <div>
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda (g)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="mh"
+          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca (g)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="ms"
+          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+      </div>
+    </div>
+
+    <button onclick="calcular()"
+      class="mt-5 w-full bg-stracon-blue hover:bg-stracon-blueDark active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-stracon-blue/30 transition">
+      Calcular y guardar
+    </button>
+
+    <!-- Resultado -->
+    <div id="resultado" class="hidden mt-4 fade-in">
+      <div class="rounded-xl p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-1">Contenido de humedad</p>
+        <p class="text-3xl font-black text-emerald-800 font-mono"><span id="valorHum">0.00</span><span class="text-lg"> %</span></p>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBox" class="hidden mt-4 fade-in rounded-xl p-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold"></div>
+
+  </section>
+
+  <!-- Historial -->
+  <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Historial</h2>
+      <button onclick="borrarTodo()" class="text-[11px] text-red-600 font-semibold hover:underline">
+        Borrar todo
+      </button>
+    </div>
+    <div id="historial" class="space-y-2"></div>
+  </section>
+
+  <p class="text-center text-[10px] text-slate-400 mt-6">
+    Lab Stracon · v1.0 · Funciona offline
+  </p>
+
+</div>
+
+<script>
+  // ---------- DB ----------
+  const db = new Dexie("lab_stracon");
+  db.version(1).stores({ humedad: "++id, fecha, metodo, resultado" });
+
+  let metodoActual = "con";
+
+  // ---------- UI ----------
+  function setMetodo(m) {
+    metodoActual = m;
+    const btnCon = document.getElementById("btnCon");
+    const btnSin = document.getElementById("btnSin");
+    const camposCon = document.getElementById("camposCon");
+    const camposSin = document.getElementById("camposSin");
+
+    const activeCls = "py-2.5 text-sm font-bold rounded-lg transition bg-white text-stracon-blue shadow-sm";
+    const idleCls = "py-2.5 text-sm font-bold rounded-lg transition text-slate-500";
+
+    if (m === "con") {
+      btnCon.className = activeCls;
+      btnSin.className = idleCls;
+      camposCon.classList.remove("hidden");
+      camposSin.classList.add("hidden");
+    } else {
+      btnSin.className = activeCls;
+      btnCon.className = idleCls;
+      camposSin.classList.remove("hidden");
+      camposCon.classList.add("hidden");
+    }
+    ocultarMensajes();
+  }
+
+  function num(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === "" ? NaN : parseFloat(v);
+  }
+
+  function ocultarMensajes() {
+    document.getElementById("resultado").classList.add("hidden");
+    document.getElementById("errorBox").classList.add("hidden");
+  }
+
+  function mostrarError(msg) {
+    const e = document.getElementById("errorBox");
+    e.textContent = msg;
+    e.classList.remove("hidden");
+    document.getElementById("resultado").classList.add("hidden");
+  }
+
+  // ---------- Cálculo ----------
+  async function calcular() {
+    ocultarMensajes();
+    let humedad = NaN;
+    let datos = {};
+
+    if (metodoActual === "con") {
+      const mht = num("mht"), mst = num("mst"), tara = num("tara");
+      if ([mht, mst, tara].some(isNaN)) return mostrarError("Completa todos los campos.");
+      if (mst <= tara) return mostrarError("La masa seca + tara debe ser mayor que la tara.");
+      humedad = ((mht - mst) / (mst - tara)) * 100;
+      datos = { mht, mst, tara };
+    } else {
+      const mh = num("mh"), ms = num("ms");
+      if ([mh, ms].some(isNaN)) return mostrarError("Completa todos los campos.");
+      if (ms <= 0) return mostrarError("La masa seca debe ser mayor que cero.");
+      humedad = ((mh - ms) / ms) * 100;
+      datos = { mh, ms };
+    }
+
+    await db.humedad.add({
+      fecha: new Date().toISOString(),
+      metodo: metodoActual,
+      resultado: parseFloat(humedad.toFixed(2)),
+      datos
+    });
+
+    document.getElementById("valorHum").textContent = humedad.toFixed(2);
+    document.getElementById("resultado").classList.remove("hidden");
+
+    ["mht","mst","tara","mh","ms"].forEach(id => document.getElementById(id).value = "");
+    cargarHistorial();
+  }
+
+  // ---------- Historial ----------
+  async function cargarHistorial() {
+    const items = await db.humedad.orderBy("id").reverse().limit(30).toArray();
+    const cont = document.getElementById("historial");
+    if (items.length === 0) {
+      cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">Sin registros aún</p>';
+      return;
+    }
+    cont.innerHTML = items.map(it => {
+      const f = new Date(it.fecha).toLocaleString("es-PE", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+      return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+        <div>
+          <p class="font-mono font-bold text-slate-800 text-lg leading-tight">${it.resultado}%</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">${f} · ${it.metodo === "con" ? "con tara" : "sin tara"}</p>
+        </div>
+        <button onclick="borrarUno(${it.id})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center text-lg font-bold">×</button>
+      </div>`;
+    }).join("");
+  }
+
+  async function borrarUno(id) {
+    if (!confirm("¿Eliminar este registro?")) return;
+    await db.humedad.delete(id);
+    cargarHistorial();
+  }
+
+  async function borrarTodo() {
+    if (!confirm("¿Borrar TODO el historial?")) return;
+    await db.humedad.clear();
+    cargarHistorial();
+  }
+
+  cargarHistorial();
+
+  // ---------- Online / Offline ----------
+  function actualizarStatus() {
+    const pill = document.getElementById("statusPill");
+    if (navigator.onLine) {
+      pill.className = "text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700";
+      pill.textContent = "● Online";
+    } else {
+      pill.className = "text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700";
+      pill.textContent = "● Offline";
+    }
+  }
+  window.addEventListener("online", actualizarStatus);
+  window.addEventListener("offline", actualizarStatus);
+  actualizarStatus();
+
+  // ---------- Estado inicial del toggle ----------
+  setMetodo("con");
+
+  // ---------- Service Worker ----------
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW:", err));
+    });
+  }
+</script>
+</body>
+</html>
