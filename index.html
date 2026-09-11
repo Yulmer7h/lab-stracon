@@ -9,73 +9,42 @@
 <meta name="apple-mobile-web-app-title" content="Lab Stracon">
 <title>Lab Stracon</title>
 
-<!-- Manifest se inyecta por JS (más abajo) -->
 <link rel="manifest" id="manifestLink">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/dexie@4.0.8/dist/dexie.min.js"></script>
 <script>
   tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          stracon: {
-            blue: '#004B8D',
-            blueDark: '#003366',
-            blueLight: '#1E6BB8',
-            red: '#D32F2F',
-          }
-        },
-        fontFamily: {
-          mono: ['ui-monospace','SFMono-Regular','Menlo','monospace']
-        }
-      }
-    }
+    theme: { extend: { colors: {
+      stracon: { blue: '#004B8D', blueDark: '#003366', blueLight: '#1E6BB8', red: '#D32F2F' }
+    }}}
   };
 
-  // ---------- Manifest + íconos inline ----------
   (function generarManifest() {
-    // Ícono SVG con "LS" sobre fondo azul Stracon
     const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
       <rect width="512" height="512" rx="100" fill="#004B8D"/>
       <circle cx="256" cy="256" r="180" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.15"/>
       <text x="256" y="330" font-family="Arial,Helvetica,sans-serif" font-size="240" font-weight="900" fill="#ffffff" text-anchor="middle">LS</text>
     </svg>`;
-
-    const iconDataUri = "data:image/svg+xml;base64," +
-      btoa(unescape(encodeURIComponent(svgIcon)));
-
+    const iconDataUri = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgIcon)));
     const manifest = {
-      name: "Lab Stracon",
-      short_name: "Lab Stracon",
-      description: "Cálculos de laboratorio de suelos y concretos",
-      start_url: "./",
-      scope: "./",
-      display: "standalone",
-      orientation: "portrait",
-      background_color: "#F5F5F5",
-      theme_color: "#004B8D",
-      lang: "es",
+      name: "Lab Stracon", short_name: "Lab Stracon",
+      description: "Cálculos de laboratorio",
+      start_url: "./", scope: "./", display: "standalone", orientation: "portrait",
+      background_color: "#F5F5F5", theme_color: "#004B8D", lang: "es",
       icons: [
         { src: iconDataUri, sizes: "192x192", type: "image/svg+xml", purpose: "any" },
         { src: iconDataUri, sizes: "512x512", type: "image/svg+xml", purpose: "any" },
         { src: iconDataUri, sizes: "any", type: "image/svg+xml", purpose: "maskable" }
       ]
     };
-
     const blob = new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" });
     document.getElementById("manifestLink").href = URL.createObjectURL(blob);
-
-    // Favicon y apple-touch-icon
     const fav = document.createElement("link");
-    fav.rel = "icon";
-    fav.type = "image/svg+xml";
-    fav.href = iconDataUri;
+    fav.rel = "icon"; fav.type = "image/svg+xml"; fav.href = iconDataUri;
     document.head.appendChild(fav);
-
     const apple = document.createElement("link");
-    apple.rel = "apple-touch-icon";
-    apple.href = iconDataUri;
+    apple.rel = "apple-touch-icon"; apple.href = iconDataUri;
     document.head.appendChild(apple);
   })();
 </script>
@@ -87,229 +56,855 @@
   input[type=number] { -moz-appearance: textfield; }
   .fade-in { animation: fadeIn .25s ease-out; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+  .card-ensayo { transition: transform .15s, box-shadow .15s; }
+  .card-ensayo:active { transform: scale(.97); }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  .falla-btn { transition: all .15s; }
+  .falla-btn.sel { border-color: #004B8D; background: #EFF6FF; color: #004B8D; }
+  .toast { animation: toastIn .25s ease-out; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(20px);} to {opacity:1; transform:none;} }
+  .resultado-item { animation: slideIn .2s ease-out; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-8px);} to {opacity:1; transform:none;} }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen">
 
-<div class="max-w-md mx-auto p-4 pb-24">
+<div class="max-w-md mx-auto p-4 pb-12">
 
-  <!-- Header -->
   <header class="flex items-center justify-between mb-5">
     <div class="flex items-center gap-3">
-      <div class="w-11 h-11 rounded-2xl bg-stracon-blue flex items-center justify-center text-white font-black shadow-lg shadow-stracon-blue/30">
-        LS
-      </div>
+      <div class="w-11 h-11 rounded-2xl bg-stracon-blue flex items-center justify-center text-white font-black shadow-lg shadow-stracon-blue/30">LS</div>
       <div>
         <h1 class="text-base font-bold text-slate-900 leading-tight">Lab Stracon</h1>
-        <p class="text-[11px] text-slate-500">Contenido de Humedad</p>
+        <p class="text-[11px] text-slate-500">Cálculos de laboratorio</p>
       </div>
     </div>
-    <span id="statusPill" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">
-      ● Online
-    </span>
+    <span id="statusPill" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">● Online</span>
   </header>
 
-  <!-- Card principal -->
-  <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5 mb-4">
+  <!-- ================= HOME ================= -->
+  <div id="pantalla-home" class="pantalla">
+    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Ensayos disponibles</h2>
+    <div class="grid grid-cols-2 gap-3" id="gridEnsayos"></div>
 
-    <!-- Toggle método -->
-    <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-5">
-      <button id="btnCon" onclick="setMetodo('con')"
-        class="py-2.5 text-sm font-bold rounded-lg transition">
-        Con tara
-      </button>
-      <button id="btnSin" onclick="setMetodo('sin')"
-        class="py-2.5 text-sm font-bold rounded-lg transition">
-        Sin tara
-      </button>
-    </div>
-
-    <!-- Campos CON tara -->
-    <div id="camposCon" class="space-y-3">
-      <div>
-        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda + tara (g)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="mht"
-          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+    <button onclick="irA('historial')" class="mt-5 w-full bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-4 flex items-center justify-between hover:shadow-xl active:scale-[0.98] transition card-ensayo">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        </div>
+        <div class="text-left">
+          <p class="text-sm font-bold text-slate-800">Historial General</p>
+          <p class="text-[11px] text-slate-500">Todos los ensayos</p>
+        </div>
       </div>
-      <div>
-        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca + tara (g)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="mst"
-          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
-      </div>
-      <div>
-        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tara (g)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="tara"
-          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
-      </div>
-    </div>
-
-    <!-- Campos SIN tara -->
-    <div id="camposSin" class="space-y-3 hidden">
-      <div>
-        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda (g)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="mh"
-          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
-      </div>
-      <div>
-        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca (g)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="ms"
-          class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
-      </div>
-    </div>
-
-    <button onclick="calcular()"
-      class="mt-5 w-full bg-stracon-blue hover:bg-stracon-blueDark active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-stracon-blue/30 transition">
-      Calcular y guardar
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-slate-400"><path d="m9 18 6-6-6-6"/></svg>
     </button>
 
-    <!-- Resultado -->
-    <div id="resultado" class="hidden mt-4 fade-in">
-      <div class="rounded-xl p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-1">Contenido de humedad</p>
-        <p class="text-3xl font-black text-emerald-800 font-mono"><span id="valorHum">0.00</span><span class="text-lg"> %</span></p>
+    <p class="text-center text-[10px] text-slate-400 mt-6">Lab Stracon · v5.0 · Funciona offline</p>
+  </div>
+
+  <!-- ================= HUMEDAD ================= -->
+  <div id="pantalla-humedad" class="pantalla hidden">
+    <button onclick="irA('home')" class="text-sm text-stracon-blue font-semibold mb-3 flex items-center gap-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m15 18-6-6 6-6"/></svg> Volver
+    </button>
+
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-blue-50 text-stracon-blue flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>
+        </div>
+        <h2 class="text-base font-bold text-slate-900">Contenido de Humedad</h2>
       </div>
-    </div>
 
-    <!-- Error -->
-    <div id="errorBox" class="hidden mt-4 fade-in rounded-xl p-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold"></div>
+      <details class="mb-4 bg-blue-50/60 rounded-xl border border-blue-100">
+        <summary class="px-3 py-2 text-[11px] font-bold text-stracon-blue flex items-center justify-between">
+          <span>¿Cómo se calcula?</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="px-3 pb-3 text-[11px] text-slate-600 space-y-2">
+          <p><b>Con tara:</b></p>
+          <p class="font-mono bg-white px-2 py-1.5 rounded-lg border border-blue-100">w% = (Mh+t − Ms+t) / (Ms+t − T) × 100</p>
+          <p><b>Sin tara:</b></p>
+          <p class="font-mono bg-white px-2 py-1.5 rounded-lg border border-blue-100">w% = (Mh − Ms) / Ms × 100</p>
+        </div>
+      </details>
 
-  </section>
+      <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-5">
+        <button id="btnCon" onclick="setMetodo('con')" class="py-2.5 text-sm font-bold rounded-lg transition">Con tara</button>
+        <button id="btnSin" onclick="setMetodo('sin')" class="py-2.5 text-sm font-bold rounded-lg transition">Sin tara</button>
+      </div>
 
-  <!-- Historial -->
-  <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5">
-    <div class="flex items-center justify-between mb-3">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Historial</h2>
-      <button onclick="borrarTodo()" class="text-[11px] text-red-600 font-semibold hover:underline">
-        Borrar todo
+      <div id="camposCon" class="space-y-3">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda + tara (g)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="mht" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca + tara (g)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="mst" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tara (g)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="tara" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+        </div>
+      </div>
+
+      <div id="camposSin" class="space-y-3 hidden">
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa húmeda (g)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="mh" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Masa seca (g)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="ms" class="mt-1 w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+        </div>
+      </div>
+
+      <button onclick="calcularHumedad()" class="mt-5 w-full bg-stracon-blue hover:bg-stracon-blueDark active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-stracon-blue/30 transition">Calcular y guardar</button>
+
+      <div id="resultadoHum" class="hidden mt-4 fade-in">
+        <div class="rounded-xl p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 mb-1">Contenido de humedad</p>
+          <p class="text-4xl font-black text-emerald-800 font-mono"><span id="valorHum">0.00</span><span class="text-lg"> %</span></p>
+        </div>
+      </div>
+      <div id="errorHum" class="hidden mt-4 fade-in rounded-xl p-3 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold"></div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Últimos registros</h2>
+        <button onclick="borrarTodoHumedad()" class="text-[11px] text-red-600 font-semibold hover:underline">Borrar todo</button>
+      </div>
+      <div id="historialHum" class="space-y-2"></div>
+    </section>
+  </div>
+
+  <!-- ================= ROTURA ================= -->
+  <div id="pantalla-compresion" class="pantalla hidden">
+    <button onclick="irA('home')" class="text-sm text-stracon-blue font-semibold mb-3 flex items-center gap-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m15 18-6-6 6-6"/></svg> Volver
+    </button>
+
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5 mb-4">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        </div>
+        <h2 class="text-base font-bold text-slate-900">Rotura de Probetas</h2>
+      </div>
+
+      <details class="mb-4 bg-red-50/60 rounded-xl border border-red-100">
+        <summary class="px-3 py-2 text-[11px] font-bold text-red-600 flex items-center justify-between">
+          <span>¿Cómo se calcula?</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="m6 9 6 6 6-6"/></svg>
+        </summary>
+        <div class="px-3 pb-3 text-[11px] text-slate-600 space-y-2">
+          <p class="font-mono bg-white px-2 py-1.5 rounded-lg border border-red-100">σ = P / A</p>
+          <p><b>Cilindro:</b> A = π × (D/2)² · <b>Cubo:</b> A = L²</p>
+          <p class="text-slate-500">% f'c = (σ / f'c diseño) × 100</p>
+          <p class="text-slate-500">1 kN = 101.97 kgf · 1 kgf/cm² = 0.0980665 MPa</p>
+        </div>
+      </details>
+
+      <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl mb-4">
+        <button id="btnC39" onclick="setTipoCompresion('C39')" class="py-2.5 text-sm font-bold rounded-lg transition">Cilindros C39</button>
+        <button id="btnC109" onclick="setTipoCompresion('C109')" class="py-2.5 text-sm font-bold rounded-lg transition">Cubos C109</button>
+      </div>
+
+      <div class="mb-4">
+        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">f'c diseño</label>
+        <div class="flex gap-2 mt-1">
+          <input type="number" inputmode="decimal" step="0.1" id="fcDiseno" placeholder="Ej: 21"
+            class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-mono font-semibold focus:outline-none focus:border-stracon-blue focus:bg-white transition">
+          <select id="fcUnidad" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm font-bold focus:outline-none focus:border-stracon-blue">
+            <option value="mpa" selected>MPa</option>
+            <option value="kgcm2">kg/cm²</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 my-4"></div>
+
+      <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3">Probetas</p>
+      <div id="probetasContainer" class="space-y-3 mb-3"></div>
+
+      <button onclick="agregarProbeta()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition">+ Agregar probeta</button>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-4 mb-4">
+      <button onclick="calcularCompresion()" class="w-full bg-stracon-blue hover:bg-stracon-blueDark active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-stracon-blue/30 transition">Calcular</button>
+      <p class="text-[10px] text-slate-400 text-center mt-2">Los datos del formulario no se borran automáticamente</p>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Resultados de esta sesión</h2>
+        <button onclick="limpiarResultadosSesion()" class="text-[11px] text-slate-500 font-semibold hover:underline">Limpiar todo</button>
+      </div>
+      <div id="resultadosSesion" class="space-y-2">
+        <p class="text-slate-400 text-sm text-center py-4">Aún no hay resultados en esta sesión</p>
+      </div>
+      <button onclick="guardarTodosResultados()" id="btnGuardarTodos" class="hidden mt-4 w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-3 rounded-xl shadow-lg transition">
+        Guardar todos en el historial
       </button>
-    </div>
-    <div id="historial" class="space-y-2"></div>
-  </section>
+    </section>
 
-  <p class="text-center text-[10px] text-slate-400 mt-6">
-    Lab Stracon · v1.0 · Funciona offline
-  </p>
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Historial guardado</h2>
+        <button onclick="borrarTodoCompresion()" class="text-[11px] text-red-600 font-semibold hover:underline">Borrar todo</button>
+      </div>
+      <div id="historialComp" class="space-y-2"></div>
+    </section>
+  </div>
+
+  <!-- ================= PRÓXIMAMENTE ================= -->
+  <div id="pantalla-proximamente" class="pantalla hidden">
+    <button onclick="irA('home')" class="text-sm text-stracon-blue font-semibold mb-3 flex items-center gap-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m15 18-6-6 6-6"/></svg> Volver
+    </button>
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-8 text-center">
+      <div id="proxIcono" class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4"></div>
+      <h2 id="proxTitulo" class="text-lg font-bold text-slate-900 mb-2">Ensayo</h2>
+      <p class="text-sm text-slate-500 mb-1">Este ensayo se implementará en la próxima versión.</p>
+      <button onclick="irA('home')" class="mt-6 bg-stracon-blue text-white font-bold py-2.5 px-6 rounded-xl shadow-lg shadow-stracon-blue/30">Volver al inicio</button>
+    </section>
+  </div>
+
+  <!-- ================= HISTORIAL GENERAL ================= -->
+  <div id="pantalla-historial" class="pantalla hidden">
+    <button onclick="irA('home')" class="text-sm text-stracon-blue font-semibold mb-3 flex items-center gap-1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m15 18-6-6 6-6"/></svg> Volver
+    </button>
+    <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        </div>
+        <h2 class="text-base font-bold text-slate-900">Historial General</h2>
+      </div>
+
+      <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+        <button onclick="filtrarHistorial('todos')" data-filtro="todos" class="filtro-btn text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap bg-stracon-blue text-white">Todos</button>
+        <button onclick="filtrarHistorial('humedad')" data-filtro="humedad" class="filtro-btn text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap bg-slate-100 text-slate-600">Humedad</button>
+        <button onclick="filtrarHistorial('compresion')" data-filtro="compresion" class="filtro-btn text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap bg-slate-100 text-slate-600">Rotura</button>
+      </div>
+
+      <div id="historialGeneral" class="space-y-2"></div>
+    </section>
+  </div>
 
 </div>
 
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-2xl z-50"></div>
+
 <script>
-  // ---------- DB ----------
+  // ============================================================
+  // SVG ICONS
+  // ============================================================
+  const SVG = (path, cls = "w-5 h-5") => `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" class="${cls}">${path}</svg>`;
+
+  const ICONS = {
+    droplet: `<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>`,
+    package: `<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>`,
+    grid: `<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/>`,
+    cog: `<path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>`,
+    scale: `<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/>`,
+    copy: `<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>`
+  };
+
+  // ============================================================
+  // TIPOS DE FALLA ASTM C39 — estilo cilindro con perspectiva
+  // ============================================================
+  const FALLA_SVG = {
+    1: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 12 L22 30 L36 12" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 48 L22 30 L36 48" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`,
+    2: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M18 8 Q17 20 18 28" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M26 8 Q27 20 26 28" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M8 48 L22 32 L36 48" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`,
+    3: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M16 8 Q15 22 16 36 Q17 46 16 52" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M22 8 Q23 22 22 36 Q21 46 22 52" fill="none" stroke="currentColor" stroke-width="1.2"/>
+      <path d="M28 8 Q27 22 28 36 Q29 46 28 52" fill="none" stroke="currentColor" stroke-width="1.2"/>
+    </svg>`,
+    4: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 46 L36 14" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`,
+    5: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 14 Q14 10 22 12 Q30 14 36 12" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 46 Q14 50 22 48 Q30 46 36 48" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`,
+    6: `<svg viewBox="0 0 44 60" class="w-9 h-12">
+      <ellipse cx="22" cy="8" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <ellipse cx="22" cy="52" rx="14" ry="4" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="8" y1="8" x2="8" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <line x1="36" y1="8" x2="36" y2="52" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 22 Q16 6 22 12 Q28 6 36 22" fill="none" stroke="currentColor" stroke-width="1.3"/>
+      <path d="M8 44 Q16 52 22 46 Q28 52 36 44" fill="none" stroke="currentColor" stroke-width="1.3"/>
+    </svg>`
+  };
+
+  const FALLA_NOMBRE = {
+    1: "Conos bien formados",
+    2: "Cono en un extremo",
+    3: "Grietas columnar",
+    4: "Fractura diagonal",
+    5: "Fractura en lados",
+    6: "Extremos puntiagudos"
+  };
+
+  const ENSAYOS = [
+    { id: "humedad",     icono: "droplet", nombre: "Humedad",    sub: "Cont. de agua",     color: "blue", activo: true  },
+    { id: "compresion",  icono: "package", nombre: "Rotura",     sub: "C39 / C109",        color: "red",  activo: true  },
+    { id: "lavado",      icono: "grid",    nombre: "Lavado 200", sub: "ASTM C117",         color: "blue", activo: false },
+    { id: "abrasion",    icono: "cog",     nombre: "Abrasión",   sub: "Los Ángeles C535",  color: "red",  activo: false },
+    { id: "gravedad",    icono: "scale",   nombre: "Grav. Esp.", sub: "C127 / D854",       color: "blue", activo: false },
+  ];
+
   const db = new Dexie("lab_stracon");
-  db.version(1).stores({ humedad: "++id, fecha, metodo, resultado" });
+  db.version(9).stores({
+    humedad:    "++id, fecha, metodo, resultado",
+    compresion: "++id, fecha, tipo, resultado"
+  });
 
-  let metodoActual = "con";
+  let resultadosSesion = [];
 
-  // ---------- UI ----------
-  function setMetodo(m) {
-    metodoActual = m;
-    const btnCon = document.getElementById("btnCon");
-    const btnSin = document.getElementById("btnSin");
-    const camposCon = document.getElementById("camposCon");
-    const camposSin = document.getElementById("camposSin");
+  // ============================================================
+  // NAVEGACIÓN
+  // ============================================================
+  function irA(nombre) {
+    document.querySelectorAll(".pantalla").forEach(p => p.classList.add("hidden"));
+    const destino = document.getElementById("pantalla-" + nombre);
+    if (destino) destino.classList.remove("hidden");
+    window.scrollTo(0, 0);
 
-    const activeCls = "py-2.5 text-sm font-bold rounded-lg transition bg-white text-stracon-blue shadow-sm";
-    const idleCls = "py-2.5 text-sm font-bold rounded-lg transition text-slate-500";
-
-    if (m === "con") {
-      btnCon.className = activeCls;
-      btnSin.className = idleCls;
-      camposCon.classList.remove("hidden");
-      camposSin.classList.add("hidden");
-    } else {
-      btnSin.className = activeCls;
-      btnCon.className = idleCls;
-      camposSin.classList.remove("hidden");
-      camposCon.classList.add("hidden");
+    if (nombre === "historial") cargarHistorialGeneral();
+    if (nombre === "humedad") cargarHistorialHum();
+    if (nombre === "compresion") {
+      const cont = document.getElementById("probetasContainer");
+      if (cont.children.length === 0) agregarProbeta();
+      cargarHistorialComp();
+      renderizarResultadosSesion();
     }
-    ocultarMensajes();
+  }
+
+  function abrirEnsayo(id) {
+    const e = ENSAYOS.find(x => x.id === id);
+    if (!e) return;
+    if (e.activo) irA(e.id);
+    else {
+      document.getElementById("proxIcono").innerHTML = SVG(ICONS[e.icono], "w-8 h-8");
+      document.getElementById("proxTitulo").textContent = e.nombre + " — " + e.sub;
+      irA("proximamente");
+    }
+  }
+
+  function dibujarGrid() {
+    document.getElementById("gridEnsayos").innerHTML = ENSAYOS.map(e => {
+      const bg = e.color === "red" ? "bg-red-50" : "bg-blue-50";
+      const txt = e.color === "red" ? "text-red-600" : "text-stracon-blue";
+      const op = e.activo ? "" : "opacity-60";
+      return `
+        <button onclick="abrirEnsayo('${e.id}')" class="card-ensayo bg-white rounded-2xl shadow-lg shadow-slate-200/60 p-4 text-left ${op}">
+          <div class="w-11 h-11 rounded-xl ${bg} ${txt} flex items-center justify-center mb-2">${SVG(ICONS[e.icono], "w-6 h-6")}</div>
+          <p class="text-sm font-bold ${txt} leading-tight">${e.nombre}</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">${e.sub}</p>
+          ${!e.activo ? '<p class="text-[9px] text-amber-600 font-bold mt-1">PRÓXIMAMENTE</p>' : ''}
+        </button>`;
+    }).join("");
   }
 
   function num(id) {
     const v = document.getElementById(id).value.trim();
     return v === "" ? NaN : parseFloat(v);
   }
-
-  function ocultarMensajes() {
-    document.getElementById("resultado").classList.add("hidden");
-    document.getElementById("errorBox").classList.add("hidden");
+  function fmtFecha(iso) {
+    return new Date(iso).toLocaleString("es-PE", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
+  }
+  function fmtNum(n, d = 2) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return Number(n).toLocaleString("es-PE", { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function toast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.remove("hidden");
+    t.classList.add("toast");
+    clearTimeout(window._toastT);
+    window._toastT = setTimeout(() => t.classList.add("hidden"), 2000);
   }
 
-  function mostrarError(msg) {
-    const e = document.getElementById("errorBox");
+  // ============================================================
+  // HUMEDAD
+  // ============================================================
+  let metodoActual = "con";
+  function setMetodo(m) {
+    metodoActual = m;
+    const btnCon = document.getElementById("btnCon"), btnSin = document.getElementById("btnSin");
+    const camposCon = document.getElementById("camposCon"), camposSin = document.getElementById("camposSin");
+    const activeCls = "py-2.5 text-sm font-bold rounded-lg transition bg-white text-stracon-blue shadow-sm";
+    const idleCls = "py-2.5 text-sm font-bold rounded-lg transition text-slate-500";
+    if (m === "con") {
+      btnCon.className = activeCls; btnSin.className = idleCls;
+      camposCon.classList.remove("hidden"); camposSin.classList.add("hidden");
+    } else {
+      btnSin.className = activeCls; btnCon.className = idleCls;
+      camposSin.classList.remove("hidden"); camposCon.classList.add("hidden");
+    }
+  }
+
+  function mostrarErrorHum(msg) {
+    const e = document.getElementById("errorHum");
     e.textContent = msg;
     e.classList.remove("hidden");
-    document.getElementById("resultado").classList.add("hidden");
+    document.getElementById("resultadoHum").classList.add("hidden");
   }
 
-  // ---------- Cálculo ----------
-  async function calcular() {
-    ocultarMensajes();
-    let humedad = NaN;
-    let datos = {};
-
+  async function calcularHumedad() {
+    document.getElementById("resultadoHum").classList.add("hidden");
+    document.getElementById("errorHum").classList.add("hidden");
+    let humedad = NaN, datos = {};
     if (metodoActual === "con") {
       const mht = num("mht"), mst = num("mst"), tara = num("tara");
-      if ([mht, mst, tara].some(isNaN)) return mostrarError("Completa todos los campos.");
-      if (mst <= tara) return mostrarError("La masa seca + tara debe ser mayor que la tara.");
+      if ([mht, mst, tara].some(isNaN)) return mostrarErrorHum("Completa todos los campos.");
+      if (mst <= tara) return mostrarErrorHum("La masa seca + tara debe ser mayor que la tara.");
       humedad = ((mht - mst) / (mst - tara)) * 100;
       datos = { mht, mst, tara };
     } else {
       const mh = num("mh"), ms = num("ms");
-      if ([mh, ms].some(isNaN)) return mostrarError("Completa todos los campos.");
-      if (ms <= 0) return mostrarError("La masa seca debe ser mayor que cero.");
+      if ([mh, ms].some(isNaN)) return mostrarErrorHum("Completa todos los campos.");
+      if (ms <= 0) return mostrarErrorHum("La masa seca debe ser mayor que cero.");
       humedad = ((mh - ms) / ms) * 100;
       datos = { mh, ms };
     }
-
     await db.humedad.add({
       fecha: new Date().toISOString(),
       metodo: metodoActual,
       resultado: parseFloat(humedad.toFixed(2)),
       datos
     });
-
     document.getElementById("valorHum").textContent = humedad.toFixed(2);
-    document.getElementById("resultado").classList.remove("hidden");
-
-    ["mht","mst","tara","mh","ms"].forEach(id => document.getElementById(id).value = "");
-    cargarHistorial();
+    document.getElementById("resultadoHum").classList.remove("hidden");
+    cargarHistorialHum();
   }
 
-  // ---------- Historial ----------
-  async function cargarHistorial() {
-    const items = await db.humedad.orderBy("id").reverse().limit(30).toArray();
-    const cont = document.getElementById("historial");
+  async function cargarHistorialHum() {
+    const items = await db.humedad.orderBy("id").reverse().limit(20).toArray();
+    const cont = document.getElementById("historialHum");
     if (items.length === 0) {
       cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">Sin registros aún</p>';
       return;
     }
-    cont.innerHTML = items.map(it => {
-      const f = new Date(it.fecha).toLocaleString("es-PE", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" });
-      return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-        <div>
-          <p class="font-mono font-bold text-slate-800 text-lg leading-tight">${it.resultado}%</p>
-          <p class="text-[11px] text-slate-500 mt-0.5">${f} · ${it.metodo === "con" ? "con tara" : "sin tara"}</p>
+    cont.innerHTML = items.map(it => `
+      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-blue-50 text-stracon-blue flex items-center justify-center">${SVG(ICONS.droplet, "w-4 h-4")}</div>
+          <div>
+            <p class="font-mono font-bold text-slate-800 text-lg leading-tight">${it.resultado}%</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">${fmtFecha(it.fecha)} · ${it.metodo === "con" ? "con tara" : "sin tara"}</p>
+          </div>
         </div>
-        <button onclick="borrarUno(${it.id})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center text-lg font-bold">×</button>
-      </div>`;
+        <button onclick="borrarHum(${it.id})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center">${SVG(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`, "w-4 h-4")}</button>
+      </div>`).join("");
+  }
+
+  async function borrarHum(id) {
+    if (!confirm("¿Eliminar este registro?")) return;
+    await db.humedad.delete(id);
+    cargarHistorialHum();
+  }
+  async function borrarTodoHumedad() {
+    if (!confirm("¿Borrar TODO el historial de humedad?")) return;
+    await db.humedad.clear();
+    cargarHistorialHum();
+  }
+
+  // ============================================================
+  // ROTURA
+  // ============================================================
+  let tipoCompresion = "C39";
+  const KN_A_KGF = 101.97;
+  const KGF_A_MPA = 0.0980665;
+
+  function setTipoCompresion(t) {
+    tipoCompresion = t;
+    const btnC39 = document.getElementById("btnC39");
+    const btnC109 = document.getElementById("btnC109");
+    const activeCls = "py-2.5 text-sm font-bold rounded-lg transition bg-white text-stracon-blue shadow-sm";
+    const idleCls = "py-2.5 text-sm font-bold rounded-lg transition text-slate-500";
+    if (t === "C39") { btnC39.className = activeCls; btnC109.className = idleCls; }
+    else { btnC109.className = activeCls; btnC39.className = idleCls; }
+
+    document.getElementById("errorComp").classList.add("hidden");
+    document.getElementById("probetasContainer").innerHTML = "";
+    agregarProbeta();
+  }
+
+  function agregarProbeta() {
+    const cont = document.getElementById("probetasContainer");
+    const idx = cont.children.length + 1;
+    const div = document.createElement("div");
+    div.className = "bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-2 fade-in";
+
+    const fallaBtns = [1,2,3,4,5,6].map(n => `
+      <button type="button" data-falla="${n}" onclick="selFalla(this)" title="${FALLA_NOMBRE[n]}" class="falla-btn flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-400">
+        ${FALLA_SVG[n]}
+        <span class="text-[8px] font-bold">T${n}</span>
+      </button>
+    `).join("");
+
+    if (tipoCompresion === "C39") {
+      div.innerHTML = `
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-slate-600">Probeta #${idx}</span>
+          <button onclick="this.closest('.bg-slate-50').remove(); renumerarProbetas();" class="w-7 h-7 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center">${SVG(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`, "w-3.5 h-3.5")}</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-500">D1 (cm)</label>
+            <input type="number" inputmode="decimal" step="0.01" data-d1 placeholder="15.24" class="mt-1 w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2.5 text-base font-mono font-semibold focus:outline-none focus:border-stracon-blue">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500">D2 (opc)</label>
+            <input type="number" inputmode="decimal" step="0.01" data-d2 placeholder="—" class="mt-1 w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2.5 text-base font-mono font-semibold focus:outline-none focus:border-stracon-blue">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500">Carga (kN)</label>
+            <input type="number" inputmode="decimal" step="0.1" data-carga placeholder="0.0" class="mt-1 w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2.5 text-base font-mono font-semibold focus:outline-none focus:border-stracon-blue">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500">Tipo de falla (opcional)</label>
+          <div class="grid grid-cols-6 gap-1 mt-1">${fallaBtns}</div>
+        </div>
+      `;
+    } else {
+      div.innerHTML = `
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-bold text-slate-600">Cubo #${idx}</span>
+          <button onclick="this.closest('.bg-slate-50').remove(); renumerarProbetas();" class="w-7 h-7 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center">${SVG(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`, "w-3.5 h-3.5")}</button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] font-bold text-slate-500">Lado (cm)</label>
+            <input type="number" inputmode="decimal" step="0.01" data-lado placeholder="5.00" class="mt-1 w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-base font-mono font-semibold focus:outline-none focus:border-stracon-blue">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500">Carga (kN)</label>
+            <input type="number" inputmode="decimal" step="0.1" data-carga placeholder="0.0" class="mt-1 w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-base font-mono font-semibold focus:outline-none focus:border-stracon-blue">
+          </div>
+        </div>
+      `;
+    }
+    cont.appendChild(div);
+  }
+
+  function selFalla(btn) {
+    const parent = btn.parentElement;
+    parent.querySelectorAll(".falla-btn").forEach(b => b.classList.remove("sel"));
+    btn.classList.add("sel");
+  }
+
+  function renumerarProbetas() {
+    Array.from(document.getElementById("probetasContainer").children).forEach((el, i) => {
+      el.querySelector("span").textContent = (tipoCompresion === "C39" ? "Probeta #" : "Cubo #") + (i + 1);
+    });
+  }
+
+  function mostrarErrorComp(msg) {
+    const e = document.getElementById("errorComp");
+    if (!e) return alert(msg);
+    e.textContent = msg;
+    e.classList.remove("hidden");
+  }
+
+  function calcularCompresion() {
+    const errorBox = document.getElementById("errorComp");
+    if (errorBox) errorBox.classList.add("hidden");
+
+    const fcDiseno = num("fcDiseno");
+    const fcUnidad = document.getElementById("fcUnidad").value;
+
+    if (isNaN(fcDiseno) || fcDiseno <= 0) return mostrarErrorComp("Ingresa el f'c de diseño.");
+    const fcMpa = fcUnidad === "kgcm2" ? fcDiseno * KGF_A_MPA : fcDiseno;
+
+    const probetas = [];
+    document.querySelectorAll("#probetasContainer > div").forEach((bloque, i) => {
+      const carga = parseFloat(bloque.querySelector("[data-carga]")?.value);
+      if (isNaN(carga) || carga <= 0) return;
+
+      if (tipoCompresion === "C39") {
+        const d1 = parseFloat(bloque.querySelector("[data-d1]")?.value);
+        const d2 = parseFloat(bloque.querySelector("[data-d2]")?.value);
+        if (isNaN(d1) || d1 <= 0) return;
+        const dProm = (!isNaN(d2) && d2 > 0) ? (d1 + d2) / 2 : d1;
+        const area = Math.PI * Math.pow(dProm / 2, 2);
+        const fallaBtn = bloque.querySelector(".falla-btn.sel");
+        const tipoFalla = fallaBtn ? parseInt(fallaBtn.dataset.falla) : null;
+        probetas.push({ n: i + 1, d1, d2: (!isNaN(d2) ? d2 : null), dProm, area, carga, tipoFalla });
+      } else {
+        const lado = parseFloat(bloque.querySelector("[data-lado]")?.value);
+        if (isNaN(lado) || lado <= 0) return;
+        const area = lado * lado;
+        probetas.push({ n: i + 1, lado, area, carga, tipoFalla: null });
+      }
+    });
+
+    if (probetas.length === 0) return mostrarErrorComp("Ingresa al menos una probeta con datos válidos.");
+
+    const resultados = probetas.map(p => {
+      const cargaKgf = p.carga * KN_A_KGF;
+      const resistenciaKg = cargaKgf / p.area;
+      const resistenciaMpa = resistenciaKg * KGF_A_MPA;
+      const porcFC = (resistenciaMpa / fcMpa) * 100;
+      return {
+        tipo: tipoCompresion,
+        nProbeta: p.n,
+        fcDiseno: parseFloat(fcDiseno.toFixed(2)),
+        fcUnidad,
+        fcMpa: parseFloat(fcMpa.toFixed(3)),
+        tipoFalla: p.tipoFalla,
+        d1: p.d1 ?? null,
+        d2: p.d2 ?? null,
+        lado: p.lado ?? null,
+        area: parseFloat(p.area.toFixed(2)),
+        cargaKN: parseFloat(p.carga.toFixed(2)),
+        cargaKgf: parseFloat(cargaKgf.toFixed(2)),
+        resistenciaKg: parseFloat(resistenciaKg.toFixed(2)),
+        resistenciaMpa: parseFloat(resistenciaMpa.toFixed(2)),
+        porcFC: parseFloat(porcFC.toFixed(2))
+      };
+    });
+
+    resultadosSesion.push(...resultados);
+    renderizarResultadosSesion();
+  }
+
+  function renderizarResultadosSesion() {
+    const cont = document.getElementById("resultadosSesion");
+    const btnGuardar = document.getElementById("btnGuardarTodos");
+
+    if (resultadosSesion.length === 0) {
+      cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">Aún no hay resultados en esta sesión</p>';
+      btnGuardar.classList.add("hidden");
+      return;
+    }
+
+    btnGuardar.classList.remove("hidden");
+
+    // Agrupar por cada "calculo" (combinación tipo + f'c + unidad). Como agregamos en orden, agrupamos por bloques consecutivos
+    const grupos = [];
+    resultadosSesion.forEach(r => {
+      const key = `${r.tipo}-${r.fcDiseno}-${r.fcUnidad}`;
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo && ultimo.key === key && ultimo.items.every(x => x.nProbeta < r.nProbeta)) {
+        ultimo.items.push(r);
+      } else {
+        grupos.push({ key, items: [r] });
+      }
+    });
+
+    let html = "";
+    grupos.forEach(grupo => {
+      const items = grupo.items;
+      const promMpa = items.reduce((s, r) => s + r.resistenciaMpa, 0) / items.length;
+      const promKg = items.reduce((s, r) => s + r.resistenciaKg, 0) / items.length;
+      const promPorc = items.reduce((s, r) => s + r.porcFC, 0) / items.length;
+      const r0 = items[0];
+      const fcMostrar = r0.fcUnidad === "kgcm2" ? `${r0.fcDiseno} kg/cm²` : `${r0.fcDiseno} MPa`;
+
+      const colorPct = promPorc >= 100 ? "text-emerald-700" : promPorc >= 80 ? "text-amber-600" : "text-red-600";
+      const bgPct = promPorc >= 100 ? "bg-emerald-500" : promPorc >= 80 ? "bg-amber-500" : "bg-red-500";
+
+      html += `
+        <div class="rounded-xl overflow-hidden border border-slate-200 resultado-item">
+          <div class="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">${r0.tipo} · f'c ${fcMostrar}</p>
+            <span class="${bgPct} text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${fmtNum(promPorc, 1)}%</span>
+          </div>
+          <div class="p-4">
+            <div class="flex items-baseline gap-2 mb-3">
+              <span class="text-3xl font-black font-mono text-slate-800">${fmtNum(promPorc, 1)}</span>
+              <span class="text-lg font-bold ${colorPct}">% f'c</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-[9px] font-bold uppercase text-slate-400">MPa</p>
+                <p class="font-mono font-bold text-slate-800">${fmtNum(promMpa)}</p>
+              </div>
+              <div class="bg-slate-50 rounded-lg p-2">
+                <p class="text-[9px] font-bold uppercase text-slate-400">kg/cm²</p>
+                <p class="font-mono font-bold text-slate-800">${fmtNum(promKg)}</p>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-slate-100 space-y-1">
+              ${items.map(r => `
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="text-slate-500">#${r.nProbeta}${r.tipoFalla ? ` · T${r.tipoFalla}` : ''}</span>
+                  <span class="font-mono font-bold text-slate-700">${fmtNum(r.resistenciaMpa)} MPa · ${fmtNum(r.porcFC, 1)}%</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    cont.innerHTML = html;
+  }
+
+  async function guardarTodosResultados() {
+    if (resultadosSesion.length === 0) return;
+    const fechaAhora = new Date().toISOString();
+    for (const r of resultadosSesion) {
+      await db.compresion.add({ fecha: fechaAhora, resultado: r.resistenciaMpa, ...r });
+    }
+    resultadosSesion = [];
+    renderizarResultadosSesion();
+    cargarHistorialComp();
+    toast("✓ Guardado en el historial");
+  }
+
+  function limpiarResultadosSesion() {
+    if (resultadosSesion.length === 0) return;
+    if (!confirm("¿Limpiar todos los resultados de esta sesión? (No se guardarán)")) return;
+    resultadosSesion = [];
+    renderizarResultadosSesion();
+  }
+
+  async function cargarHistorialComp() {
+    const items = await db.compresion.orderBy("id").reverse().limit(20).toArray();
+    const cont = document.getElementById("historialComp");
+    if (items.length === 0) {
+      cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">Sin registros aún</p>';
+      return;
+    }
+    cont.innerHTML = items.map(it => `
+      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">${SVG(ICONS.package, "w-4 h-4")}</div>
+          <div>
+            <p class="font-mono font-bold text-slate-800 leading-tight">${fmtNum(it.resistenciaMpa)} MPa · <span class="text-red-600">${fmtNum(it.porcFC, 1)}%</span></p>
+            <p class="text-[11px] text-slate-500 mt-0.5">${fmtFecha(it.fecha)} · ${it.tipo} · #${it.nProbeta}${it.tipoFalla ? " · T" + it.tipoFalla : ""}</p>
+          </div>
+        </div>
+        <button onclick="borrarComp(${it.id})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center">${SVG(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`, "w-4 h-4")}</button>
+      </div>
+    `).join("");
+  }
+
+  async function borrarComp(id) {
+    if (!confirm("¿Eliminar este registro?")) return;
+    await db.compresion.delete(id);
+    cargarHistorialComp();
+  }
+  async function borrarTodoCompresion() {
+    if (!confirm("¿Borrar TODO el historial de rotura?")) return;
+    await db.compresion.clear();
+    cargarHistorialComp();
+  }
+
+  // ============================================================
+  // HISTORIAL GENERAL
+  // ============================================================
+  let filtroActual = "todos";
+
+  function filtrarHistorial(f) {
+    filtroActual = f;
+    document.querySelectorAll(".filtro-btn").forEach(b => {
+      const esActivo = b.dataset.filtro === f;
+      b.className = esActivo
+        ? "filtro-btn text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap bg-stracon-blue text-white"
+        : "filtro-btn text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap bg-slate-100 text-slate-600";
+    });
+    cargarHistorialGeneral();
+  }
+
+  async function cargarHistorialGeneral() {
+    const cont = document.getElementById("historialGeneral");
+    cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">Cargando...</p>';
+    let todos = [];
+
+    if (filtroActual === "todos" || filtroActual === "humedad") {
+      const h = await db.humedad.orderBy("id").reverse().limit(50).toArray();
+      todos = todos.concat(h.map(x => ({
+        icono: "droplet", color: "blue",
+        titulo: x.resultado + " %",
+        detalle: x.metodo === "con" ? "con tara" : "sin tara",
+        fecha: x.fecha, id: x.id, tabla: "humedad"
+      })));
+    }
+    if (filtroActual === "todos" || filtroActual === "compresion") {
+      const c = await db.compresion.orderBy("id").reverse().limit(50).toArray();
+      todos = todos.concat(c.map(x => ({
+        icono: "package", color: "red",
+        titulo: fmtNum(x.resistenciaMpa) + " MPa · " + fmtNum(x.porcFC, 1) + "%",
+        detalle: `${x.tipo} · #${x.nProbeta}${x.tipoFalla ? " · T" + x.tipoFalla : ""}`,
+        fecha: x.fecha, id: x.id, tabla: "compresion"
+      })));
+    }
+
+    todos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    if (todos.length === 0) {
+      cont.innerHTML = '<p class="text-slate-400 text-sm text-center py-6">Sin registros</p>';
+      return;
+    }
+    cont.innerHTML = todos.slice(0, 60).map(it => {
+      const bg = it.color === "red" ? "bg-red-50" : "bg-blue-50";
+      const txt = it.color === "red" ? "text-red-600" : "text-stracon-blue";
+      return `
+        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg ${bg} ${txt} flex items-center justify-center">${SVG(ICONS[it.icono], "w-4 h-4")}</div>
+            <div>
+              <p class="font-mono font-bold text-slate-800 leading-tight">${it.titulo}</p>
+              <p class="text-[11px] text-slate-500">${fmtFecha(it.fecha)} · ${it.detalle}</p>
+            </div>
+          </div>
+          <button onclick="borrarDeTabla('${it.tabla}', ${it.id})" class="w-9 h-9 rounded-lg text-red-500 hover:bg-red-50 flex items-center justify-center">${SVG(`<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`, "w-4 h-4")}</button>
+        </div>`;
     }).join("");
   }
 
-  async function borrarUno(id) {
+  async function borrarDeTabla(tabla, id) {
     if (!confirm("¿Eliminar este registro?")) return;
-    await db.humedad.delete(id);
-    cargarHistorial();
+    await db[tabla].delete(id);
+    cargarHistorialGeneral();
   }
 
-  async function borrarTodo() {
-    if (!confirm("¿Borrar TODO el historial?")) return;
-    await db.humedad.clear();
-    cargarHistorial();
-  }
-
-  cargarHistorial();
-
-  // ---------- Online / Offline ----------
+  // ============================================================
+  // ONLINE / OFFLINE
+  // ============================================================
   function actualizarStatus() {
     const pill = document.getElementById("statusPill");
     if (navigator.onLine) {
@@ -322,12 +917,16 @@
   }
   window.addEventListener("online", actualizarStatus);
   window.addEventListener("offline", actualizarStatus);
-  actualizarStatus();
 
-  // ---------- Estado inicial del toggle ----------
+  // ============================================================
+  // INICIALIZACIÓN
+  // ============================================================
+  dibujarGrid();
   setMetodo("con");
+  setTipoCompresion("C39");
+  actualizarStatus();
+  cargarHistorialHum();
 
-  // ---------- Service Worker ----------
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW:", err));
