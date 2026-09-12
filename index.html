@@ -44,52 +44,77 @@
       </svg>
     );
 
+    // Icono Editar
+    const IconEdit = () => (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+    );
+
     function App() {
-      const [moduloActivo, setModuloActivo] = useState('humedad'); // 'humedad' | 'compresion'
+      const [moduloActivo, setModuloActivo] = useState('humedad'); // 'humedad' | 'compresion' | 'abrasion' | 'gravedad'
       
-      // Estado para Humedad (ASTM D2216 / ASTM D4959)
+      // Persistencia en LocalStorage
       const [registrosHumedad, setRegistrosHumedad] = useState(() => {
         const saved = localStorage.getItem('stracon_lab_humedad');
         return saved ? JSON.parse(saved) : [];
       });
 
-      // Estado para Compresión (ASTM C39 / C109)
       const [registrosCompresion, setRegistrosCompresion] = useState(() => {
         const saved = localStorage.getItem('stracon_lab_compresion');
         return saved ? JSON.parse(saved) : [];
       });
 
+      const [registrosAbrasion, setRegistrosAbrasion] = useState(() => {
+        const saved = localStorage.getItem('stracon_lab_abrasion');
+        return saved ? JSON.parse(saved) : [];
+      });
+
+      const [registrosGravedad, setRegistrosGravedad] = useState(() => {
+        const saved = localStorage.getItem('stracon_lab_gravedad');
+        return saved ? JSON.parse(saved) : [];
+      });
+
       const [usarTara, setUsarTara] = useState(true);
 
+      // Estados de edición
+      const [editandoHumedadId, setEditandoHumedadId] = useState(null);
+      const [editandoCompresionId, setEditandoCompresionId] = useState(null);
+      const [editandoAbrasionId, setEditandoAbrasionId] = useState(null);
+      const [editandoGravedadId, setEditandoGravedadId] = useState(null);
+
       // Formulario Humedad
-      const [formHumedad, setFormHumedad] = useState({
-        muestraId: '',
-        recipienteId: '',
-        m2: '',
-        m1: '',
-        m3: ''
-      });
+      const [formHumedad, setFormHumedad] = useState({ muestraId: '', recipienteId: '', m2: '', m1: '', m3: '' });
 
       // Formulario Compresión
       const [formCompresion, setFormCompresion] = useState({
-        muestraId: '',
-        tipoProbeta: 'cilindro_6x12',
-        d1: '15.24',
-        d2: '15.24',
-        altura: '30.48',
-        fcEspecificado: '21',
-        unidadFcEsp: 'MPa',
-        cargaMax: '', 
-        unidadCarga: 'kN'
+        muestraId: '', tipoProbeta: 'cilindro_6x12', d1: '15.24', d2: '15.24',
+        altura: '30.48', fcEspecificado: '21', unidadFcEsp: 'MPa', cargaMax: '', unidadCarga: 'kN'
       });
 
-      useEffect(() => {
-        localStorage.setItem('stracon_lab_humedad', JSON.stringify(registrosHumedad));
-      }, [registrosHumedad]);
+      // Formulario Abrasión
+      const [formAbrasion, setFormAbrasion] = useState({
+        muestraId: '', norma: 'C131', gradacion: 'A', numEsferas: '12', masaInicial: '5000', masaRetenida: '', limiteMax: '40'
+      });
 
-      useEffect(() => {
-        localStorage.setItem('stracon_lab_compresion', JSON.stringify(registrosCompresion));
-      }, [registrosCompresion]);
+      // Formulario Gravedad Específica / Densidad
+      const [formGravedad, setFormGravedad] = useState({
+        muestraId: '',
+        norma: 'C127', // 'C127' (Grueso) | 'C128' (Fino) | 'D854' (Suelos)
+        // C127
+        mSeca: '',
+        mSSS: '',
+        mSumergida: '',
+        // C128 / D854
+        mPicnometroAgua: '',
+        mPicnometroMuestraAgua: '',
+        tempAgua: '20'
+      });
+
+      useEffect(() => localStorage.setItem('stracon_lab_humedad', JSON.stringify(registrosHumedad)), [registrosHumedad]);
+      useEffect(() => localStorage.setItem('stracon_lab_compresion', JSON.stringify(registrosCompresion)), [registrosCompresion]);
+      useEffect(() => localStorage.setItem('stracon_lab_abrasion', JSON.stringify(registrosAbrasion)), [registrosAbrasion]);
+      useEffect(() => localStorage.setItem('stracon_lab_gravedad', JSON.stringify(registrosGravedad)), [registrosGravedad]);
 
       // Handlers
       const handleHumedadChange = (e) => setFormHumedad({ ...formHumedad, [e.target.name]: e.target.value });
@@ -97,24 +122,30 @@
       const handleCompresionChange = (e) => {
         const { name, value } = e.target;
         let updated = { ...formCompresion, [name]: value };
-
         if (name === 'tipoProbeta') {
-          if (value === 'cilindro_6x12') {
-            updated.d1 = '15.24';
-            updated.d2 = '15.24';
-            updated.altura = '30.48';
-          } else if (value === 'cilindro_4x8') {
-            updated.d1 = '10.16';
-            updated.d2 = '10.16';
-            updated.altura = '20.32';
-          } else if (value === 'cubo_2in') {
-            updated.d1 = '5.00';
-            updated.d2 = '5.00';
-            updated.altura = '5.00';
-          }
+          if (value === 'cilindro_6x12') { updated.d1 = '15.24'; updated.d2 = '15.24'; updated.altura = '30.48'; }
+          else if (value === 'cilindro_4x8') { updated.d1 = '10.16'; updated.d2 = '10.16'; updated.altura = '20.32'; }
+          else if (value === 'cubo_2in') { updated.d1 = '5.00'; updated.d2 = '5.00'; updated.altura = '5.00'; }
         }
         setFormCompresion(updated);
       };
+
+      const handleAbrasionChange = (e) => {
+        const { name, value } = e.target;
+        let updated = { ...formAbrasion, [name]: value };
+        if (name === 'norma') {
+          if (value === 'C131') { updated.gradacion = 'A'; updated.numEsferas = '12'; updated.masaInicial = '5000'; }
+          else if (value === 'C535') { updated.gradacion = '1'; updated.numEsferas = '12'; updated.masaInicial = '10000'; }
+        } else if (name === 'gradacion' && formAbrasion.norma === 'C131') {
+          if (value === 'A') updated.numEsferas = '12';
+          else if (value === 'B') updated.numEsferas = '11';
+          else if (value === 'C') updated.numEsferas = '8';
+          else if (value === 'D') updated.numEsferas = '6';
+        }
+        setFormAbrasion(updated);
+      };
+
+      const handleGravedadChange = (e) => setFormGravedad({ ...formGravedad, [e.target.name]: e.target.value });
 
       // --- CÁLCULOS HUMEDAD ---
       const masaTara = usarTara ? parseFloat(formHumedad.m2) || 0 : 0;
@@ -124,38 +155,20 @@
       const masaSueloSeco = masaSecaConTara - masaTara;
       const porcentajeHumedad = masaSueloSeco > 0 ? ((masaAgua / masaSueloSeco) * 100).toFixed(2) : '0.00';
 
-      // --- CÁLCULOS COMPRESIÓN (C39 / C109) ---
+      // --- CÁLCULOS COMPRESIÓN ---
       const valD1 = parseFloat(formCompresion.d1) || 0;
       const valD2 = parseFloat(formCompresion.d2) || 0;
       const diamPromedio = (valD1 + valD2) / 2;
-
       const alt = parseFloat(formCompresion.altura) || 0;
       const carga = parseFloat(formCompresion.cargaMax) || 0;
       const valFcEsp = parseFloat(formCompresion.fcEspecificado) || 0;
 
-      // Conversión de Carga
-      let cargaKN = 0;
-      let cargaKgf = 0;
-
-      if (formCompresion.unidadCarga === 'kN') {
-        cargaKN = carga;
-        cargaKgf = carga * 101.9716;
-      } else {
-        cargaKgf = carga;
-        cargaKN = carga / 101.9716;
-      }
-
+      let cargaKN = formCompresion.unidadCarga === 'kN' ? carga : carga / 101.9716;
+      let cargaKgf = formCompresion.unidadCarga === 'kN' ? carga * 101.9716 : carga;
       const fcEspMPa = formCompresion.unidadFcEsp === 'kg/cm2' ? valFcEsp * 0.0980665 : valFcEsp;
-
-      let area = 0;
-      if (formCompresion.tipoProbeta.includes('cubo')) {
-        area = valD1 * valD2;
-      } else {
-        area = Math.PI * Math.pow(diamPromedio / 2, 2);
-      }
+      let area = formCompresion.tipoProbeta.includes('cubo') ? valD1 * valD2 : Math.PI * Math.pow(diamPromedio / 2, 2);
 
       let fcObtenidoKg = area > 0 ? (cargaKgf / area) : 0;
-
       let factorLD = 1.00;
       if (!formCompresion.tipoProbeta.includes('cubo') && diamPromedio > 0 && alt > 0) {
         const relacionLD = alt / diamPromedio;
@@ -170,12 +183,59 @@
       const fcMPa = fcCorregidoKg * 0.0980665;
       const porcentajeCumplimiento = fcEspMPa > 0 ? ((fcMPa / fcEspMPa) * 100).toFixed(1) : '0.0';
 
+      // --- CÁLCULOS ABRASIÓN ---
+      const mInicial = parseFloat(formAbrasion.masaInicial) || 0;
+      const mRetenida = parseFloat(formAbrasion.masaRetenida) || 0;
+      const masaPerdida = mInicial > mRetenida ? mInicial - mRetenida : 0;
+      const porcentajeDesgaste = mInicial > 0 ? ((masaPerdida / mInicial) * 100).toFixed(2) : '0.00';
+      const limiteMaxVal = parseFloat(formAbrasion.limiteMax) || 40;
+      const cumpleAbrasion = parseFloat(porcentajeDesgaste) <= limiteMaxVal;
+
+      // --- CÁLCULOS GRAVEDAD ESPECÍFICA ---
+      const A = parseFloat(formGravedad.mSeca) || 0;
+      const B_sss = parseFloat(formGravedad.mSSS) || 0;
+      const C_sumergida = parseFloat(formGravedad.mSumergida) || 0;
+      const M_bw = parseFloat(formGravedad.mPicnometroAgua) || 0;
+      const M_bws = parseFloat(formGravedad.mPicnometroMuestraAgua) || 0;
+
+      let gSeca = 0, gSSS = 0, gAparente = 0, absorcion = 0;
+
+      if (formGravedad.norma === 'C127') {
+        // ASTM C127 (Agregado Grueso)
+        const volApar = B_sss - C_sumergida;
+        if (volApar > 0) {
+          gSeca = A / volApar;
+          gSSS = B_sss / volApar;
+          gAparente = (A - C_sumergida) > 0 ? A / (A - C_sumergida) : 0;
+          absorcion = A > 0 ? ((B_sss - A) / A) * 100 : 0;
+        }
+      } else if (formGravedad.norma === 'C128') {
+        // ASTM C128 (Agregado Fino)
+        const volApar = (M_bw + B_sss) - M_bws;
+        if (volApar > 0) {
+          gSeca = A / volApar;
+          gSSS = B_sss / volApar;
+          gAparente = (M_bw + A - M_bws) > 0 ? A / (M_bw + A - M_bws) : 0;
+          absorcion = A > 0 ? ((B_sss - A) / A) * 100 : 0;
+        }
+      } else if (formGravedad.norma === 'D854') {
+        // ASTM D854 (Suelos - Gs)
+        const volAguaDesplazada = (M_bw + A) - M_bws;
+        if (volAguaDesplazada > 0) {
+          gSeca = A / volAguaDesplazada; // Gs a Temp de ensayo
+          gSSS = gSeca;
+          gAparente = gSeca;
+          absorcion = 0;
+        }
+      }
+
+      // --- FUNCIONES HUMEDAD ---
       const agregarHumedad = (e) => {
         e.preventDefault();
         if (!formHumedad.muestraId || masaHumedaConTara <= 0 || masaSecaConTara <= 0) return;
 
         const nuevo = {
-          id: Date.now(),
+          id: editandoHumedadId || Date.now(),
           muestraId: formHumedad.muestraId,
           recipienteId: formHumedad.recipienteId || '-',
           usarTara,
@@ -188,31 +248,120 @@
           hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        setRegistrosHumedad([nuevo, ...registrosHumedad]);
+        if (editandoHumedadId) {
+          setRegistrosHumedad(registrosHumedad.map(item => item.id === editandoHumedadId ? nuevo : item));
+          setEditandoHumedadId(null);
+        } else setRegistrosHumedad([nuevo, ...registrosHumedad]);
+
         setFormHumedad({ muestraId: '', recipienteId: '', m2: '', m1: '', m3: '' });
       };
 
+      const cargarParaEditarHumedad = (item) => {
+        setEditandoHumedadId(item.id);
+        setUsarTara(item.usarTara);
+        setFormHumedad({ muestraId: item.muestraId, recipienteId: item.recipienteId === '-' ? '' : item.recipienteId, m2: item.masaTara, m1: item.masaHumedaConTara, m3: item.masaSecaConTara });
+      };
+
+      // --- FUNCIONES COMPRESIÓN ---
       const agregarCompresion = (e) => {
         e.preventDefault();
         if (!formCompresion.muestraId || carga <= 0 || area <= 0) return;
 
         const nuevo = {
-          id: Date.now(),
+          id: editandoCompresionId || Date.now(),
           muestraId: formCompresion.muestraId,
           tipoProbeta: formCompresion.tipoProbeta,
-          diamPromedio: diamPromedio.toFixed(2),
-          area: area.toFixed(2),
-          cargaKN: cargaKN.toFixed(1),
-          cargaKgf: cargaKgf.toFixed(0),
-          fcEspMPa: fcEspMPa.toFixed(1),
-          fcObtenidoKg: fcCorregidoKg.toFixed(1),
-          fcMPa: fcMPa.toFixed(2),
-          cumplimiento: porcentajeCumplimiento,
+          d1: formCompresion.d1, d2: formCompresion.d2, altura: formCompresion.altura,
+          fcEspecificado: formCompresion.fcEspecificado, unidadFcEsp: formCompresion.unidadFcEsp,
+          cargaMax: formCompresion.cargaMax, unidadCarga: formCompresion.unidadCarga,
+          diamPromedio: diamPromedio.toFixed(2), area: area.toFixed(2), cargaKN: cargaKN.toFixed(1),
+          cargaKgf: cargaKgf.toFixed(0), fcEspMPa: fcEspMPa.toFixed(1), fcObtenidoKg: fcCorregidoKg.toFixed(1),
+          fcMPa: fcMPa.toFixed(2), cumplimiento: porcentajeCumplimiento,
           hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        setRegistrosCompresion([nuevo, ...registrosCompresion]);
+        if (editandoCompresionId) {
+          setRegistrosCompresion(registrosCompresion.map(item => item.id === editandoCompresionId ? nuevo : item));
+          setEditandoCompresionId(null);
+        } else setRegistrosCompresion([nuevo, ...registrosCompresion]);
+
         setFormCompresion({ ...formCompresion, muestraId: '', cargaMax: '' });
+      };
+
+      const cargarParaEditarCompresion = (item) => {
+        setEditandoCompresionId(item.id);
+        setFormCompresion({
+          muestraId: item.muestraId, tipoProbeta: item.tipoProbeta || 'cilindro_6x12', d1: item.d1 || item.diamPromedio,
+          d2: item.d2 || item.diamPromedio, altura: item.altura || '30.48', fcEspecificado: item.fcEspecificado || item.fcEspMPa,
+          unidadFcEsp: item.unidadFcEsp || 'MPa', cargaMax: item.cargaMax || item.cargaKN, unidadCarga: item.unidadCarga || 'kN'
+        });
+      };
+
+      // --- FUNCIONES ABRASIÓN ---
+      const agregarAbrasion = (e) => {
+        e.preventDefault();
+        if (!formAbrasion.muestraId || mInicial <= 0 || mRetenida <= 0) return;
+
+        const nuevo = {
+          id: editandoAbrasionId || Date.now(),
+          muestraId: formAbrasion.muestraId, norma: formAbrasion.norma, gradacion: formAbrasion.gradacion,
+          numEsferas: formAbrasion.numEsferas, masaInicial: mInicial.toFixed(1), masaRetenida: mRetenida.toFixed(1),
+          masaPerdida: masaPerdida.toFixed(1), porcentajeDesgaste, limiteMax: limiteMaxVal, cumple: cumpleAbrasion,
+          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        if (editandoAbrasionId) {
+          setRegistrosAbrasion(registrosAbrasion.map(item => item.id === editandoAbrasionId ? nuevo : item));
+          setEditandoAbrasionId(null);
+        } else setRegistrosAbrasion([nuevo, ...registrosAbrasion]);
+
+        setFormAbrasion({ ...formAbrasion, muestraId: '', masaRetenida: '' });
+      };
+
+      const cargarParaEditarAbrasion = (item) => {
+        setEditandoAbrasionId(item.id);
+        setFormAbrasion({
+          muestraId: item.muestraId, norma: item.norma, gradacion: item.gradacion,
+          numEsferas: item.numEsferas, masaInicial: item.masaInicial, masaRetenida: item.masaRetenida, limiteMax: item.limiteMax
+        });
+      };
+
+      // --- FUNCIONES GRAVEDAD ESPECÍFICA ---
+      const agregarGravedad = (e) => {
+        e.preventDefault();
+        if (!formGravedad.muestraId || A <= 0) return;
+
+        const nuevo = {
+          id: editandoGravedadId || Date.now(),
+          muestraId: formGravedad.muestraId,
+          norma: formGravedad.norma,
+          mSeca: A.toFixed(2),
+          mSSS: B_sss.toFixed(2),
+          mSumergida: C_sumergida.toFixed(2),
+          mPicnometroAgua: M_bw.toFixed(2),
+          mPicnometroMuestraAgua: M_bws.toFixed(2),
+          gSeca: gSeca.toFixed(3),
+          gSSS: gSSS.toFixed(3),
+          gAparente: gAparente.toFixed(3),
+          absorcion: absorcion.toFixed(2),
+          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        if (editandoGravedadId) {
+          setRegistrosGravedad(registrosGravedad.map(item => item.id === editandoGravedadId ? nuevo : item));
+          setEditandoGravedadId(null);
+        } else setRegistrosGravedad([nuevo, ...registrosGravedad]);
+
+        setFormGravedad({ ...formGravedad, muestraId: '', mSeca: '', mSSS: '', mSumergida: '', mPicnometroAgua: '', mPicnometroMuestraAgua: '' });
+      };
+
+      const cargarParaEditarGravedad = (item) => {
+        setEditandoGravedadId(item.id);
+        setFormGravedad({
+          muestraId: item.muestraId, norma: item.norma, mSeca: item.mSeca, mSSS: item.mSSS || '',
+          mSumergida: item.mSumergida || '', mPicnometroAgua: item.mPicnometroAgua || '',
+          mPicnometroMuestraAgua: item.mPicnometroMuestraAgua || '', tempAgua: '20'
+        });
       };
 
       return (
@@ -222,26 +371,38 @@
           <header className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4 mb-6">
             <LogoStracon />
             
-            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
+            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 flex-wrap">
               <button
                 onClick={() => setModuloActivo('humedad')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                  moduloActivo === 'humedad'
-                    ? 'bg-[#0A192F] text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                  moduloActivo === 'humedad' ? 'bg-[#0A192F] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Humedad (ASTM D2216 / D4959)
+                Humedad (D2216/D4959)
               </button>
               <button
                 onClick={() => setModuloActivo('compresion')}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                  moduloActivo === 'compresion'
-                    ? 'bg-[#0A192F] text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                  moduloActivo === 'compresion' ? 'bg-[#0A192F] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Compresión (ASTM C39 / C109)
+                Compresión (C39/C109)
+              </button>
+              <button
+                onClick={() => setModuloActivo('abrasion')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  moduloActivo === 'abrasion' ? 'bg-[#0A192F] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Abrasión (C131/C535)
+              </button>
+              <button
+                onClick={() => setModuloActivo('gravedad')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  moduloActivo === 'gravedad' ? 'bg-[#0A192F] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Grav. Específica (C127/C128/D854)
               </button>
             </div>
           </header>
@@ -249,23 +410,13 @@
           {/* ===================== MÓDULO 1: HUMEDAD ===================== */}
           {moduloActivo === 'humedad' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-              {/* Formulario Humedad */}
               <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
                   <div>
-                    <h2 className="font-bold text-[#0A192F]">Ingreso de Humedad</h2>
+                    <h2 className="font-bold text-[#0A192F]">{editandoHumedadId ? '✏️ Modificar Registro' : 'Ingreso de Humedad'}</h2>
                     <span className="text-[10px] text-slate-400 font-bold block">ASTM D2216 / ASTM D4959</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setUsarTara(!usarTara)}
-                    className={`text-xs px-2.5 py-1 rounded font-bold transition-colors ${
-                      usarTara 
-                        ? 'bg-slate-100 text-[#0A192F] border border-slate-300' 
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
-                  >
+                  <button type="button" onClick={() => setUsarTara(!usarTara)} className={`text-xs px-2.5 py-1 rounded font-bold transition-colors ${usarTara ? 'bg-slate-100 text-[#0A192F] border border-slate-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
                     {usarTara ? 'CON TARA' : 'SIN TARA (DIRECTO)'}
                   </button>
                 </div>
@@ -273,76 +424,30 @@
                 <form onSubmit={agregarHumedad} className="space-y-3.5">
                   <div>
                     <label className="text-xs font-bold text-slate-600">ID Muestra</label>
-                    <input
-                      type="text"
-                      name="muestraId"
-                      value={formHumedad.muestraId}
-                      onChange={handleHumedadChange}
-                      placeholder="Ej. M-01"
-                      className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium"
-                      required
-                    />
+                    <input type="text" name="muestraId" value={formHumedad.muestraId} onChange={handleHumedadChange} placeholder="Ej. M-01" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium" required />
                   </div>
 
                   {usarTara && (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs font-bold text-slate-600">Cod. Recipiente</label>
-                        <input
-                          type="text"
-                          name="recipienteId"
-                          value={formHumedad.recipienteId}
-                          onChange={handleHumedadChange}
-                          placeholder="Ej. T-10"
-                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium"
-                        />
+                        <input type="text" name="recipienteId" value={formHumedad.recipienteId} onChange={handleHumedadChange} placeholder="Ej. T-10" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium" />
                       </div>
                       <div>
                         <label className="text-xs font-bold text-slate-600">Masa Tara (g)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          name="m2"
-                          value={formHumedad.m2}
-                          onChange={handleHumedadChange}
-                          placeholder="0.00"
-                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1"
-                          required={usarTara}
-                        />
+                        <input type="number" step="0.01" name="m2" value={formHumedad.m2} onChange={handleHumedadChange} placeholder="0.00" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1" required={usarTara} />
                       </div>
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-bold text-slate-600">
-                        {usarTara ? 'Masa Húmeda + Tara (g)' : 'Masa Suelo Húmedo (g)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="m1"
-                        value={formHumedad.m1}
-                        onChange={handleHumedadChange}
-                        placeholder="0.00"
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1"
-                        required
-                      />
+                      <label className="text-xs font-bold text-slate-600">{usarTara ? 'Masa Húmeda + Tara (g)' : 'Masa Suelo Húmedo (g)'}</label>
+                      <input type="number" step="0.01" name="m1" value={formHumedad.m1} onChange={handleHumedadChange} placeholder="0.00" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1" required />
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-slate-600">
-                        {usarTara ? 'Masa Seca + Tara (g)' : 'Masa Suelo Seco (g)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="m3"
-                        value={formHumedad.m3}
-                        onChange={handleHumedadChange}
-                        placeholder="0.00"
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1"
-                        required
-                      />
+                      <label className="text-xs font-bold text-slate-600">{usarTara ? 'Masa Seca + Tara (g)' : 'Masa Suelo Seco (g)'}</label>
+                      <input type="number" step="0.01" name="m3" value={formHumedad.m3} onChange={handleHumedadChange} placeholder="0.00" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none mt-1" required />
                     </div>
                   </div>
 
@@ -357,67 +462,43 @@
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full bg-[#E30613] hover:bg-red-700 text-white font-extrabold py-2.5 rounded transition-all shadow-sm text-sm"
-                  >
-                    + Registrar Humedad
-                  </button>
+                  <div className="flex gap-2">
+                    <button type="submit" className={`flex-1 font-extrabold py-2.5 rounded transition-all shadow-sm text-sm text-white ${editandoHumedadId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#E30613] hover:bg-red-700'}`}>
+                      {editandoHumedadId ? '✓ Guardar Cambios' : '+ Registrar Humedad'}
+                    </button>
+                    {editandoHumedadId && <button type="button" onClick={() => setEditandoHumedadId(null)} className="px-3 bg-slate-200 text-slate-700 font-bold rounded text-xs">Cancelar</button>}
+                  </div>
                 </form>
               </div>
 
-              {/* Tabla Humedad */}
               <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
-                  <h2 className="font-bold text-[#0A192F]">
-                    Planilla de Humedades Guardadas
-                  </h2>
-                  <span className="text-xs font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                    Total: {registrosHumedad.length}
-                  </span>
+                  <h2 className="font-bold text-[#0A192F]">Planilla de Humedades Guardadas</h2>
+                  <span className="text-xs font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">Total: {registrosHumedad.length}</span>
                 </div>
-
                 <div className="overflow-x-auto flex-1">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase bg-slate-50">
-                        <th className="p-2.5">ID Muestra</th>
-                        <th className="p-2.5">Modo</th>
-                        <th className="p-2.5 text-right">S. Seco (g)</th>
-                        <th className="p-2.5 text-right">Agua (g)</th>
-                        <th className="p-2.5 text-right">Humedad %</th>
-                        <th className="p-2.5 text-center">Acción</th>
+                        <th className="p-2.5">ID Muestra</th><th className="p-2.5">Modo</th><th className="p-2.5 text-right">S. Seco (g)</th><th className="p-2.5 text-right">Agua (g)</th><th className="p-2.5 text-right">Humedad %</th><th className="p-2.5 text-center">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {registrosHumedad.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" className="text-center py-8 text-slate-400 text-xs">
-                            Sin registros en la planilla.
-                          </td>
-                        </tr>
+                        <tr><td colSpan="6" className="text-center py-8 text-slate-400 text-xs">Sin registros.</td></tr>
                       ) : (
                         registrosHumedad.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="p-2.5 font-bold text-slate-800">
-                              {item.muestraId}
-                              <span className="block text-[10px] text-slate-400 font-normal">{item.hora} {item.recipienteId !== '-' && `| Tara: ${item.recipienteId}`}</span>
-                            </td>
-                            <td className="p-2.5">
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${item.usarTara ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-800'}`}>
-                                {item.usarTara ? 'Con Tara' : 'Directo'}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-right font-mono text-slate-700">{item.masaSueloSeco}</td>
-                            <td className="p-2.5 text-right font-mono text-slate-700">{item.masaAgua}</td>
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-800">{item.muestraId}<span className="block text-[10px] text-slate-400 font-normal">{item.hora}</span></td>
+                            <td className="p-2.5"><span className="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">{item.usarTara ? 'Con Tara' : 'Directo'}</span></td>
+                            <td className="p-2.5 text-right font-mono">{item.masaSueloSeco}</td>
+                            <td className="p-2.5 text-right font-mono">{item.masaAgua}</td>
                             <td className="p-2.5 text-right font-mono font-black text-[#E30613] text-base">{item.humedad}%</td>
                             <td className="p-2.5 text-center">
-                              <button
-                                onClick={() => setRegistrosHumedad(registrosHumedad.filter(r => r.id !== item.id))}
-                                className="text-slate-400 hover:text-red-600 transition-colors"
-                              >
-                                <IconTrash />
-                              </button>
+                              <div className="flex items-center justify-center gap-2">
+                                <button onClick={() => cargarParaEditarHumedad(item)} className="text-slate-400 hover:text-blue-600"><IconEdit /></button>
+                                <button onClick={() => setRegistrosHumedad(registrosHumedad.filter(r => r.id !== item.id))} className="text-slate-400 hover:text-red-600"><IconTrash /></button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -426,155 +507,71 @@
                   </table>
                 </div>
               </div>
-
             </div>
           )}
 
           {/* ===================== MÓDULO 2: COMPRESIÓN ===================== */}
           {moduloActivo === 'compresion' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-              {/* Formulario Compresión */}
               <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
-                  <h2 className="font-bold text-[#0A192F]">Rotura a Compresión</h2>
-                  <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded">
-                    ASTM C39 / C109
-                  </span>
+                  <h2 className="font-bold text-[#0A192F]">{editandoCompresionId ? '✏️ Modificar Ensayo' : 'Rotura a Compresión'}</h2>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded">ASTM C39 / C109</span>
                 </div>
 
                 <form onSubmit={agregarCompresion} className="space-y-3.5">
                   <div>
                     <label className="text-xs font-bold text-slate-600">ID Muestra</label>
-                    <input
-                      type="text"
-                      name="muestraId"
-                      value={formCompresion.muestraId}
-                      onChange={handleCompresionChange}
-                      placeholder="Ej. C-101"
-                      className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium"
-                      required
-                    />
+                    <input type="text" name="muestraId" value={formCompresion.muestraId} onChange={handleCompresionChange} placeholder="Ej. C-101" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium" required />
                   </div>
-
                   <div>
                     <label className="text-xs font-bold text-slate-600">Tipo de Probeta</label>
-                    <select
-                      name="tipoProbeta"
-                      value={formCompresion.tipoProbeta}
-                      onChange={handleCompresionChange}
-                      className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-semibold"
-                    >
+                    <select name="tipoProbeta" value={formCompresion.tipoProbeta} onChange={handleCompresionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-semibold">
                       <option value="cilindro_6x12">Cilindro Concreto 6" x 12" (15x30 cm)</option>
                       <option value="cilindro_4x8">Cilindro Concreto 4" x 8" (10x20 cm)</option>
                       <option value="cubo_2in">Cubo Mortero 2" x 2" (5 cm) [C109]</option>
-                      <option value="personalizado">Personalizado (Ingresar Medidas)</option>
+                      <option value="personalizado">Personalizado</option>
                     </select>
                   </div>
 
-                  {/* Dos Lecturas de Diámetro / Lado + f'c Especificado */}
                   <div className="grid grid-cols-3 gap-2.5">
-                    <div className="flex flex-col justify-end">
-                      <label className="text-[11px] font-bold text-slate-600 mb-1 block truncate">
-                        {formCompresion.tipoProbeta.includes('cubo') ? 'Lado 1 (cm)' : 'Diámetro 1 (cm)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="d1"
-                        value={formCompresion.d1}
-                        onChange={handleCompresionChange}
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
-                        required
-                      />
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 block truncate">{formCompresion.tipoProbeta.includes('cubo') ? 'Lado 1 (cm)' : 'Ø 1 (cm)'}</label>
+                      <input type="number" step="0.01" name="d1" value={formCompresion.d1} onChange={handleCompresionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
                     </div>
-                    <div className="flex flex-col justify-end">
-                      <label className="text-[11px] font-bold text-slate-600 mb-1 block truncate">
-                        {formCompresion.tipoProbeta.includes('cubo') ? 'Lado 2 (cm)' : 'Diámetro 2 (cm)'}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="d2"
-                        value={formCompresion.d2}
-                        onChange={handleCompresionChange}
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
-                        required
-                      />
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 block truncate">{formCompresion.tipoProbeta.includes('cubo') ? 'Lado 2 (cm)' : 'Ø 2 (cm)'}</label>
+                      <input type="number" step="0.01" name="d2" value={formCompresion.d2} onChange={handleCompresionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
                     </div>
-                    <div className="flex flex-col justify-end">
+                    <div>
                       <div className="flex justify-between items-center mb-1">
                         <label className="text-[11px] font-bold text-slate-600">f'c Esp.</label>
-                        <select
-                          name="unidadFcEsp"
-                          value={formCompresion.unidadFcEsp}
-                          onChange={handleCompresionChange}
-                          className="text-[10px] font-bold text-slate-600 bg-transparent outline-none cursor-pointer"
-                        >
-                          <option value="MPa">MPa</option>
-                          <option value="kg/cm2">kg/cm²</option>
+                        <select name="unidadFcEsp" value={formCompresion.unidadFcEsp} onChange={handleCompresionChange} className="text-[10px] font-bold text-slate-600">
+                          <option value="MPa">MPa</option><option value="kg/cm2">kg/cm²</option>
                         </select>
                       </div>
-                      <input
-                        type="number"
-                        step="0.1"
-                        name="fcEspecificado"
-                        value={formCompresion.fcEspecificado}
-                        onChange={handleCompresionChange}
-                        placeholder={formCompresion.unidadFcEsp === 'MPa' ? "21" : "210"}
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
-                        required
-                      />
+                      <input type="number" step="0.1" name="fcEspecificado" value={formCompresion.fcEspecificado} onChange={handleCompresionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
                     </div>
                   </div>
 
-                  {/* Carga Máxima e Ingreso en */}
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2 flex flex-col justify-end">
+                    <div className="col-span-2">
                       <label className="text-xs font-bold text-slate-600 mb-1 block">Carga máxima</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        name="cargaMax"
-                        value={formCompresion.cargaMax}
-                        onChange={handleCompresionChange}
-                        placeholder="0.0"
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono font-bold text-[#0A192F] focus:border-[#0A192F] outline-none h-9"
-                        required
-                      />
+                      <input type="number" step="0.1" name="cargaMax" value={formCompresion.cargaMax} onChange={handleCompresionChange} placeholder="0.0" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono font-bold text-[#0A192F]" required />
                     </div>
-                    <div className="flex flex-col justify-end">
-                      <label className="text-xs font-bold text-slate-600 mb-1 block">Ingreso en</label>
-                      <select
-                        name="unidadCarga"
-                        value={formCompresion.unidadCarga}
-                        onChange={handleCompresionChange}
-                        className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-bold focus:border-[#0A192F] outline-none h-9"
-                      >
-                        <option value="kN">kN</option>
-                        <option value="kgf">kgf</option>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 mb-1 block">Unidad</label>
+                      <select name="unidadCarga" value={formCompresion.unidadCarga} onChange={handleCompresionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-bold">
+                        <option value="kN">kN</option><option value="kgf">kgf</option>
                       </select>
                     </div>
                   </div>
 
-                  {/* Resultados Rápidos de Compresión */}
                   <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2">
-                    <div className="flex justify-between items-center text-xs text-slate-600 border-b border-slate-200 pb-2 flex-wrap gap-y-1">
-                      <span>
-                        Prom: <strong className="font-mono text-slate-800">{diamPromedio.toFixed(2)} cm</strong>
-                      </span>
-                      <span>
-                        Área: <strong className="font-mono text-slate-800">{area.toFixed(2)} cm²</strong>
-                      </span>
-                      <span>
-                        Carga máx: <strong className="font-mono text-slate-900 font-bold">
-                          {formCompresion.unidadCarga === 'kN' 
-                            ? `${Math.round(cargaKgf).toLocaleString('es-PE')} kgf` 
-                            : `${cargaKN.toFixed(1)} kN`}
-                        </strong>
-                      </span>
+                    <div className="flex justify-between items-center text-xs text-slate-600 border-b border-slate-200 pb-2 flex-wrap">
+                      <span>Área: <strong className="font-mono text-slate-800">{area.toFixed(2)} cm²</strong></span>
+                      <span>Carga: <strong className="font-mono text-slate-900 font-bold">{formCompresion.unidadCarga === 'kN' ? `${Math.round(cargaKgf).toLocaleString('es-PE')} kgf` : `${cargaKN.toFixed(1)} kN`}</strong></span>
                     </div>
-
                     <div className="flex justify-between items-end pt-1">
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">Resistencia Obtenida</span>
@@ -583,30 +580,425 @@
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] font-bold text-slate-400 block uppercase">% f'c Esp.</span>
-                        <span className={`text-lg font-black font-mono ${parseFloat(porcentajeCumplimiento) >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {porcentajeCumplimiento}%
+                        <span className={`text-lg font-black font-mono ${parseFloat(porcentajeCumplimiento) >= 100 ? 'text-emerald-600' : 'text-amber-600'}`}>{porcentajeCumplimiento}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button type="submit" className={`flex-1 font-extrabold py-2.5 rounded transition-all shadow-sm text-sm text-white ${editandoCompresionId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#E30613] hover:bg-red-700'}`}>
+                      {editandoCompresionId ? '✓ Guardar Cambios' : '+ Registrar Rotura'}
+                    </button>
+                    {editandoCompresionId && <button type="button" onClick={() => setEditandoCompresionId(null)} className="px-3 bg-slate-200 text-slate-700 font-bold rounded text-xs">Cancelar</button>}
+                  </div>
+                </form>
+              </div>
+
+              <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                  <h2 className="font-bold text-[#0A192F]">Planilla de Ensayos de Compresión</h2>
+                  <span className="text-xs font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">Total: {registrosCompresion.length}</span>
+                </div>
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase bg-slate-50">
+                        <th className="p-2.5">ID Muestra</th><th className="p-2.5 text-right">Área (cm²)</th><th className="p-2.5 text-center">Carga (kN/kgf)</th><th className="p-2.5 text-center">f'c (MPa / kg/cm²)</th><th className="p-2.5 text-right">% Esp.</th><th className="p-2.5 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {registrosCompresion.length === 0 ? (
+                        <tr><td colSpan="6" className="text-center py-8 text-slate-400 text-xs">Sin registros.</td></tr>
+                      ) : (
+                        registrosCompresion.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-800">{item.muestraId}<span className="block text-[10px] text-slate-400 font-normal">{item.hora}</span></td>
+                            <td className="p-2.5 text-right font-mono">{item.area}</td>
+                            <td className="p-2.5 text-center font-mono">{item.cargaKN} kN</td>
+                            <td className="p-2.5 text-center font-mono"><span className="font-black text-[#E30613]">{item.fcMPa} MPa</span></td>
+                            <td className="p-2.5 text-right font-mono font-bold"><span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-xs">{item.cumplimiento}%</span></td>
+                            <td className="p-2.5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button onClick={() => cargarParaEditarCompresion(item)} className="text-slate-400 hover:text-blue-600"><IconEdit /></button>
+                                <button onClick={() => setRegistrosCompresion(registrosCompresion.filter(r => r.id !== item.id))} className="text-slate-400 hover:text-red-600"><IconTrash /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===================== MÓDULO 3: ABRASIÓN LOS ÁNGELES ===================== */}
+          {moduloActivo === 'abrasion' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                  <h2 className="font-bold text-[#0A192F]">{editandoAbrasionId ? '✏️ Modificar Abrasión' : 'Abrasión Los Ángeles'}</h2>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded">{formAbrasion.norma === 'C131' ? 'ASTM C131' : 'ASTM C535'}</span>
+                </div>
+
+                <form onSubmit={agregarAbrasion} className="space-y-3.5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600">ID Muestra</label>
+                    <input type="text" name="muestraId" value={formAbrasion.muestraId} onChange={handleAbrasionChange} placeholder="Ej. AB-01" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium" required />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-600">Norma</label>
+                      <select name="norma" value={formAbrasion.norma} onChange={handleAbrasionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-semibold">
+                        <option value="C131">ASTM C131 (&lt; 1½")</option>
+                        <option value="C535">ASTM C535 (&gt; 1½")</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600">Gradación</label>
+                      <select name="gradacion" value={formAbrasion.gradacion} onChange={handleAbrasionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-semibold">
+                        {formAbrasion.norma === 'C131' ? (
+                          <><option value="A">Gradación A (12 esf)</option><option value="B">Gradación B (11 esf)</option><option value="C">Gradación C (8 esf)</option><option value="D">Gradación D (6 esf)</option></>
+                        ) : (
+                          <><option value="1">Gradación 1 (12 esf)</option><option value="2">Gradación 2 (12 esf)</option><option value="3">Gradación 3 (12 esf)</option></>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">M. Inicial (g)</label>
+                      <input type="number" step="0.1" name="masaInicial" value={formAbrasion.masaInicial} onChange={handleAbrasionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Ret. #12 (g)</label>
+                      <input type="number" step="0.1" name="masaRetenida" value={formAbrasion.masaRetenida} onChange={handleAbrasionChange} placeholder="3250" className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Lím. Máx %</label>
+                      <input type="number" step="1" name="limiteMax" value={formAbrasion.limiteMax} onChange={handleAbrasionChange} className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono" required />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2">
+                    <div className="flex justify-between items-center text-xs text-slate-600 border-b border-slate-200 pb-2">
+                      <span>Carga: <strong className="font-mono text-slate-800">{formAbrasion.numEsferas} Esferas</strong></span>
+                      <span>Pérdida: <strong className="font-mono text-slate-900 font-bold">{masaPerdida.toFixed(1)} g</strong></span>
+                    </div>
+                    <div className="flex justify-between items-end pt-1">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">% Desgaste</span>
+                        <span className="text-2xl font-black text-[#E30613] font-mono">{porcentajeDesgaste}%</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs font-black px-2 py-0.5 rounded border inline-block ${cumpleAbrasion ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                          {cumpleAbrasion ? '✓ CUMPLE' : '✕ EXCEDE'}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full bg-[#E30613] hover:bg-red-700 text-white font-extrabold py-2.5 rounded transition-all shadow-sm text-sm"
-                  >
-                    + Registrar Rotura
-                  </button>
+                  <div className="flex gap-2">
+                    <button type="submit" className={`flex-1 font-extrabold py-2.5 rounded transition-all shadow-sm text-sm text-white ${editandoAbrasionId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#E30613] hover:bg-red-700'}`}>
+                      {editandoAbrasionId ? '✓ Guardar Cambios' : '+ Registrar Abrasión'}
+                    </button>
+                    {editandoAbrasionId && <button type="button" onClick={() => setEditandoAbrasionId(null)} className="px-3 bg-slate-200 text-slate-700 font-bold rounded text-xs">Cancelar</button>}
+                  </div>
                 </form>
               </div>
 
-              {/* Tabla Compresión con Columna Unificada de Resistencia */}
+              <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
+                  <h2 className="font-bold text-[#0A192F]">Planilla de Abrasión Los Ángeles</h2>
+                  <span className="text-xs font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">Total: {registrosAbrasion.length}</span>
+                </div>
+                <div className="overflow-x-auto flex-1">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase bg-slate-50">
+                        <th className="p-2.5">ID Muestra</th><th className="p-2.5 text-center">Norma</th><th className="p-2.5 text-right">Inicial (g)</th><th className="p-2.5 text-right">Ret. #12 (g)</th><th className="p-2.5 text-right">% Desgaste</th><th className="p-2.5 text-center">Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {registrosAbrasion.length === 0 ? (
+                        <tr><td colSpan="6" className="text-center py-8 text-slate-400 text-xs">Sin registros.</td></tr>
+                      ) : (
+                        registrosAbrasion.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-800">{item.muestraId}<span className="block text-[10px] text-slate-400 font-normal">{item.hora}</span></td>
+                            <td className="p-2.5 text-center"><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{item.norma}</span></td>
+                            <td className="p-2.5 text-right font-mono">{item.masaInicial}</td>
+                            <td className="p-2.5 text-right font-mono">{item.masaRetenida}</td>
+                            <td className="p-2.5 text-right font-mono font-bold text-[#E30613]">{item.porcentajeDesgaste}%</td>
+                            <td className="p-2.5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button onClick={() => cargarParaEditarAbrasion(item)} className="text-slate-400 hover:text-blue-600"><IconEdit /></button>
+                                <button onClick={() => setRegistrosAbrasion(registrosAbrasion.filter(r => r.id !== item.id))} className="text-slate-400 hover:text-red-600"><IconTrash /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===================== MÓDULO 4: GRAVEDAD ESPECÍFICA ===================== */}
+          {moduloActivo === 'gravedad' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+              {/* Formulario Gravedad */}
+              <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100">
+                  <h2 className="font-bold text-[#0A192F]">
+                    {editandoGravedadId ? '✏️ Modificar Gravedad' : 'Gravedad Específica / Densidad'}
+                  </h2>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-1 rounded">
+                    {formGravedad.norma}
+                  </span>
+                </div>
+
+                <form onSubmit={agregarGravedad} className="space-y-3.5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600">ID Muestra</label>
+                    <input
+                      type="text"
+                      name="muestraId"
+                      value={formGravedad.muestraId}
+                      onChange={handleGravedadChange}
+                      placeholder="Ej. G-201 (Agregado / Suelo)"
+                      className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-medium"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-600">Norma del Ensayo / Tipo de Material</label>
+                    <select
+                      name="norma"
+                      value={formGravedad.norma}
+                      onChange={handleGravedadChange}
+                      className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm focus:border-[#0A192F] outline-none mt-1 font-semibold"
+                    >
+                      <option value="C127">ASTM C127 — Agregado Grueso (Canastilla Sumergida)</option>
+                      <option value="C128">ASTM C128 — Agregado Fino (Picnómetro de 500 ml)</option>
+                      <option value="D854">ASTM D854 — Suelos / Finos (Picnómetro de Agua)</option>
+                    </select>
+                  </div>
+
+                  {/* Campos dinámicos según norma */}
+                  {formGravedad.norma === 'C127' && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 block mb-1">Masa Seca (A) [g]</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="mSeca"
+                          value={formGravedad.mSeca}
+                          onChange={handleGravedadChange}
+                          placeholder="Ej. 3000"
+                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">M. SSS (B) [g]</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="mSSS"
+                          value={formGravedad.mSSS}
+                          onChange={handleGravedadChange}
+                          placeholder="Ej. 3045"
+                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">M. Sum (C) [g]</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="mSumergida"
+                          value={formGravedad.mSumergida}
+                          onChange={handleGravedadChange}
+                          placeholder="Ej. 1910"
+                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {formGravedad.norma === 'C128' && (
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Masa Seca (A) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mSeca"
+                            value={formGravedad.mSeca}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 490"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1">Masa SSS (S) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mSSS"
+                            value={formGravedad.mSSS}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 500"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">Picnóm. + Agua (B) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mPicnometroAgua"
+                            value={formGravedad.mPicnometroAgua}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 650"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">Picnóm. + Muestra + Agua (C) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mPicnometroMuestraAgua"
+                            value={formGravedad.mPicnometroMuestraAgua}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 960"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {formGravedad.norma === 'D854' && (
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 block mb-1">Masa Suelo Seco (Ms) [g]</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="mSeca"
+                          value={formGravedad.mSeca}
+                          onChange={handleGravedadChange}
+                          placeholder="Ej. 100.00"
+                          className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">Picnóm. + Agua (Mbw) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mPicnometroAgua"
+                            value={formGravedad.mPicnometroAgua}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 650.00"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-600 block mb-1 truncate">Picnóm. + Suelo + Agua (Mbws) [g]</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="mPicnometroMuestraAgua"
+                            value={formGravedad.mPicnometroMuestraAgua}
+                            onChange={handleGravedadChange}
+                            placeholder="Ej. 712.50"
+                            className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-sm font-mono focus:border-[#0A192F] outline-none h-9"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tarjeta de Resultados Gravedad */}
+                  <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2">
+                    <div className="grid grid-cols-3 gap-2 text-center border-b border-slate-200 pb-2">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">G.E. Seco (OD)</span>
+                        <span className="text-lg font-black text-[#0A192F] font-mono">{gSeca.toFixed(3)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">G.E. SSS</span>
+                        <span className="text-lg font-black text-[#0A192F] font-mono">{formGravedad.norma === 'D854' ? 'N/A' : gSSS.toFixed(3)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">G.E. Aparente</span>
+                        <span className="text-lg font-black text-[#0A192F] font-mono">{formGravedad.norma === 'D854' ? 'N/A' : gAparente.toFixed(3)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-xs font-extrabold text-slate-600 uppercase">Porcentaje de Absorción</span>
+                      <span className="text-xl font-black text-[#E30613] font-mono">
+                        {formGravedad.norma === 'D854' ? 'N/A' : `${absorcion.toFixed(2)} %`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className={`flex-1 font-extrabold py-2.5 rounded transition-all shadow-sm text-sm text-white ${
+                        editandoGravedadId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-[#E30613] hover:bg-red-700'
+                      }`}
+                    >
+                      {editandoGravedadId ? '✓ Guardar Cambios' : '+ Registrar Gravedad'}
+                    </button>
+                    {editandoGravedadId && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditandoGravedadId(null); setFormGravedad({ ...formGravedad, muestraId: '', mSeca: '', mSSS: '', mSumergida: '', mPicnometroAgua: '', mPicnometroMuestraAgua: '' }); }}
+                        className="px-3 bg-slate-200 text-slate-700 font-bold rounded text-xs"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* Tabla Gravedad */}
               <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                 <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
                   <h2 className="font-bold text-[#0A192F]">
-                    Planilla de Ensayos de Compresión
+                    Planilla de Gravedad Específica
                   </h2>
                   <span className="text-xs font-extrabold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                    Total: {registrosCompresion.length}
+                    Total: {registrosGravedad.length}
                   </span>
                 </div>
 
@@ -615,50 +1007,54 @@
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500 text-xs uppercase bg-slate-50">
                         <th className="p-2.5">ID Muestra</th>
-                        <th className="p-2.5 text-right">Área (cm²)</th>
-                        <th className="p-2.5 text-center">Carga (kN / kgf)</th>
-                        <th className="p-2.5 text-center">f'c (MPa / kg/cm²)</th>
-                        <th className="p-2.5 text-right">% Esp.</th>
+                        <th className="p-2.5 text-center">Norma</th>
+                        <th className="p-2.5 text-right">G.E. Seco</th>
+                        <th className="p-2.5 text-right">G.E. SSS</th>
+                        <th className="p-2.5 text-right">% Abs</th>
                         <th className="p-2.5 text-center">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {registrosCompresion.length === 0 ? (
+                      {registrosGravedad.length === 0 ? (
                         <tr>
                           <td colSpan="6" className="text-center py-8 text-slate-400 text-xs">
-                            Sin ensayos de compresión registrados.
+                            Sin registros de gravedad específica.
                           </td>
                         </tr>
                       ) : (
-                        registrosCompresion.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                        registrosGravedad.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50">
                             <td className="p-2.5 font-bold text-slate-800">
                               {item.muestraId}
-                              <span className="block text-[10px] text-slate-400 font-normal">{item.hora} | Ø {item.diamPromedio} cm</span>
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-semibold text-slate-700">
-                              {item.area}
-                            </td>
-                            <td className="p-2.5 text-center font-mono text-slate-700">
-                              <span className="font-bold block text-slate-900">{item.cargaKN} kN</span>
-                              <span className="text-[10px] text-slate-400">({parseInt(item.cargaKgf).toLocaleString('es-PE')} kgf)</span>
-                            </td>
-                            <td className="p-2.5 text-center font-mono">
-                              <span className="font-black text-[#E30613] text-base block">{item.fcMPa} MPa</span>
-                              <span className="text-[10px] text-slate-500 font-semibold">({item.fcObtenidoKg} kg/cm²)</span>
-                            </td>
-                            <td className="p-2.5 text-right font-mono font-bold">
-                              <span className={`px-1.5 py-0.5 rounded text-xs ${parseFloat(item.cumplimiento) >= 100 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                                {item.cumplimiento}%
-                              </span>
+                              <span className="block text-[10px] text-slate-400 font-normal">{item.hora}</span>
                             </td>
                             <td className="p-2.5 text-center">
-                              <button
-                                onClick={() => setRegistrosCompresion(registrosCompresion.filter(r => r.id !== item.id))}
-                                className="text-slate-400 hover:text-red-600 transition-colors"
-                              >
-                                <IconTrash />
-                              </button>
+                              <span className="bg-slate-100 px-2 py-0.5 rounded text-xs border border-slate-200 font-semibold">
+                                {item.norma}
+                              </span>
+                            </td>
+                            <td className="p-2.5 text-right font-mono font-bold text-slate-800">{item.gSeca}</td>
+                            <td className="p-2.5 text-right font-mono text-slate-700">{item.norma === 'D854' ? '-' : item.gSSS}</td>
+                            <td className="p-2.5 text-right font-mono font-black text-[#E30613]">
+                              {item.norma === 'D854' ? '-' : `${item.absorcion}%`}
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => cargarParaEditarGravedad(item)}
+                                  className="text-slate-400 hover:text-blue-600 transition-colors"
+                                  title="Editar ensayo"
+                                >
+                                  <IconEdit />
+                                </button>
+                                <button
+                                  onClick={() => setRegistrosGravedad(registrosGravedad.filter(r => r.id !== item.id))}
+                                  className="text-slate-400 hover:text-red-600 transition-colors"
+                                  title="Eliminar ensayo"
+                                >
+                                  <IconTrash />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
