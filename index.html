@@ -3,7 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lab STRACON - Control de Ensayos</title>
+  <title>Lab STRACON - By Yulmer7h</title>
+
+  <!-- PWA MANIFEST E ICONOS -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0A192F">
+  
+  <!-- Soporte para iOS (Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lab STRACON">
+  <link rel="apple-touch-icon" href="./logo.png">
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & React DOM -->
@@ -27,9 +38,7 @@
     // Logo Lab STRACON
     const LogoStracon = () => (
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 bg-[#E30613] rounded-lg flex items-center justify-center text-white font-black text-xl tracking-tighter shadow-sm">
-          S
-        </div>
+        <img src="./logo.png" alt="Logo" className="w-9 h-9 object-contain rounded-lg bg-[#E30613] p-1 shadow-sm" />
         <div>
           <span className="font-black text-xl tracking-wider text-[#0A192F] block leading-none">STRACON</span>
           <span className="text-[10px] font-extrabold text-slate-400 tracking-wider uppercase block mt-0.5">LAB STRACON</span>
@@ -201,7 +210,6 @@
       let gSeca = 0, gSSS = 0, gAparente = 0, absorcion = 0;
 
       if (formGravedad.norma === 'C127') {
-        // ASTM C127 (Agregado Grueso)
         const volApar = B_sss - C_sumergida;
         if (volApar > 0) {
           gSeca = A / volApar;
@@ -210,7 +218,6 @@
           absorcion = A > 0 ? ((B_sss - A) / A) * 100 : 0;
         }
       } else if (formGravedad.norma === 'C128') {
-        // ASTM C128 (Agregado Fino)
         const volApar = (M_bw + B_sss) - M_bws;
         if (volApar > 0) {
           gSeca = A / volApar;
@@ -219,10 +226,9 @@
           absorcion = A > 0 ? ((B_sss - A) / A) * 100 : 0;
         }
       } else if (formGravedad.norma === 'D854') {
-        // ASTM D854 (Suelos - Gs)
         const volAguaDesplazada = (M_bw + A) - M_bws;
         if (volAguaDesplazada > 0) {
-          gSeca = A / volAguaDesplazada; // Gs a Temp de ensayo
+          gSeca = A / volAguaDesplazada;
           gSSS = gSeca;
           gAparente = gSeca;
           absorcion = 0;
@@ -1073,6 +1079,17 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+  </script>
+
+  <!-- SCRIPT REGISTRO DE SERVICE WORKER PARA PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker PWA listo:', reg.scope))
+          .catch(err => console.error('Error al registrar Service Worker:', err));
+      });
+    }
   </script>
 </body>
 </html>
