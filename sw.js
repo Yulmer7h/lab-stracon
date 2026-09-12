@@ -1,55 +1,85 @@
-const CACHE = "lab-stracon-v1.2";
-const LOCAL_ASSETS = ["./", "./index.html", "./sw.js"];
+const CACHE_NAME = "lab-stracon-v1.5"; // Incrementamos versión para forzar actualización
 
-// Instalación: cachea lo local
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(LOCAL_ASSETS).catch(() => {}))
+const LOCAL_ASSETS = [
+  "./",
+  "./index.html",
+  "./sw.js"
+];
+
+// Instalación: descarga e instala assets base
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(LOCAL_ASSETS).catch(err => {
+        console.warn("Algunos assets no se pudieron cachear al instalar:", err);
+      });
+    })
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Fuerza al SW activo a actualizarse inmediatamente
 });
 
-// Activación: limpia cachés viejas
-self.addEventListener("activate", e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+// Activación: elimina versiones antiguas de caché ("lab-stracon-v1", etc.)
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      );
+    })
   );
-  self.clients.claim();
+  self.clients.claim(); // Toma el control de las páginas de inmediato
 });
 
-// Fetch: cache-first, con fallback a red
-self.addEventListener("fetch", e => {
-  // Ignora requests que no sean GET
-  if (e.request.method !== "GET") return;
+// Fetch: Network First para navegación (HTML) / Cache First para recursos estáticos (CSS, JS, Fonts)
+self.addEventListener("fetch", event => {
+  if (event.request.method !== "GET") return;
 
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
+  const requestUrl = new URL(event.request.url);
 
-      return fetch(e.request).then(res => {
-        // Cachea solo respuestas válidas
-        if (res && res.status === 200) {
-          const url = e.request.url;
-          const esCacheable =
-            url.startsWith(self.location.origin) ||
-            url.includes("cdn.tailwindcss.com") ||
-            url.includes("cdn.jsdelivr.net") ||
-            url.includes("fonts.googleapis.com") ||
-            url.includes("fonts.gstatic.com");
+  // Para navegaciones de página (index.html), intentamos RED primero
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Si no hay red, sirve desde la caché
+          return caches.match("./index.html");
+        })
+    );
+    return;
+  }
 
-          if (esCacheable) {
-            const copy = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, copy));
+  // Para imágenes, CDNs, fuentes, etc. -> Cache First con Fallback a Red
+  event.respondWith(
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) return cachedResponse;
+
+      return fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200) {
+          const isCacheable =
+            requestUrl.origin === self.location.origin ||
+            requestUrl.hostname.includes("cdn.tailwindcss.com") ||
+            requestUrl.hostname.includes("cdn.jsdelivr.net") ||
+            requestUrl.hostname.includes("googleapis.com") ||
+            requestUrl.hostname.includes("gstatic.com") ||
+            requestUrl.hostname.includes("cdnjs.cloudflare.com");
+
+          if (isCacheable) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
           }
         }
-        return res;
+        return networkResponse;
       }).catch(() => {
-        // Si falla la red y es navegación, devuelve el HTML cacheado
-        if (e.request.mode === "navigate") {
-          return caches.match("./index.html");
-        }
+        // Silenciar errores de red si falla una petición secundaria estando offline
       });
     })
   );
