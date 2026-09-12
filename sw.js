@@ -1,44 +1,41 @@
-const CACHE_NAME = "lab-stracon-v1.5"; // Incrementamos versión para forzar actualización
+const CACHE_NAME = "lab-stracon-v2";
 
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
-  "./sw.js"
+  "./sw.js",
+  "./manifest.json",
+  "./logo.png"
 ];
 
-// Instalación: descarga e instala assets base
+// Instalación
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(LOCAL_ASSETS).catch(err => {
-        console.warn("Algunos assets no se pudieron cachear al instalar:", err);
-      });
+      return cache.addAll(LOCAL_ASSETS).catch(err => console.warn("Error al cachear assets:", err));
     })
   );
-  self.skipWaiting(); // Fuerza al SW activo a actualizarse inmediatamente
+  self.skipWaiting();
 });
 
-// Activación: elimina versiones antiguas de caché ("lab-stracon-v1", etc.)
+// Activación y limpieza de cachés viejas
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys => {
       return Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
     })
   );
-  self.clients.claim(); // Toma el control de las páginas de inmediato
+  self.clients.claim();
 });
 
-// Fetch: Network First para navegación (HTML) / Cache First para recursos estáticos (CSS, JS, Fonts)
+// Intercepción de peticiones (Network First para HTML, Cache First para estáticos)
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
 
-  // Para navegaciones de página (index.html), intentamos RED primero
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
@@ -49,15 +46,11 @@ self.addEventListener("fetch", event => {
           }
           return response;
         })
-        .catch(() => {
-          // Si no hay red, sirve desde la caché
-          return caches.match("./index.html");
-        })
+        .catch(() => caches.match("./index.html"))
     );
     return;
   }
 
-  // Para imágenes, CDNs, fuentes, etc. -> Cache First con Fallback a Red
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) return cachedResponse;
@@ -78,9 +71,7 @@ self.addEventListener("fetch", event => {
           }
         }
         return networkResponse;
-      }).catch(() => {
-        // Silenciar errores de red si falla una petición secundaria estando offline
-      });
+      }).catch(() => {});
     })
   );
 });
