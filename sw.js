@@ -1,4 +1,4 @@
-const CACHE_NAME = "lab-stracon-v2";
+const CACHE_NAME = "lab-stracon-v1";
 
 const LOCAL_ASSETS = [
   "./",
